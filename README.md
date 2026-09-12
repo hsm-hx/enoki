@@ -652,7 +652,8 @@ LLM 版を足す手順:
 - マスコット窓の上端の上に出ます。入りきらない場合は下側に出て、しっぽの向きも反転します。
   左右は `visibleFrame` に収まるようクランプします。
 - しっぽは発言者の立ち位置（**朔 = 左 1/4 / 栞 = 右 3/4**）に向きます。
-- 文字は system font 13pt、最大幅 220pt、最大 3 行（超過は末尾省略）。
+- 文字は system font 13pt、最大幅 220pt。行数は制限せず、長い台詞は吹き出しが縦に伸びます
+  （計測は表示に使う `NSTextField` の `cellSize(forBounds:)` で行い、折り返しのずれで途中が切れないようにしています）。
   発言者名を小さく上に出します（朔 = 落ち着いた紺、栞 = 落ち着いた赤茶）。
 - フェードイン 0.2 秒 / フェードアウト 0.3 秒。表示時間は **2.5 秒 + 0.08 秒 × 文字数**（3〜7 秒にクランプ）。
   行間は 1.5〜3.0 秒のランダム。
@@ -662,6 +663,9 @@ LLM 版を足す手順:
 ```bash
 # 起動 2 秒後に 1 回だけしゃべらせる（吹き出しの確認用）
 ENOKI_DEBUG_SPEAK_ON_LAUNCH=1 ./build/Enoki.app/Contents/MacOS/Enoki
+
+# 会話 id を指定してしゃべらせる（長文の折り返し確認など）
+ENOKI_DEBUG_SPEAK_ON_LAUNCH=1 ENOKI_DEBUG_SPEAK_ID=water_006 ./build/Enoki.app/Contents/MacOS/Enoki
 
 # 会話まわりのログだけ見る
 log show --style compact --info --last 5m \

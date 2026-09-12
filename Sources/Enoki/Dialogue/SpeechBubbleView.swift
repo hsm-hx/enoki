@@ -16,7 +16,6 @@ final class SpeechBubbleView: NSView {
     static let cornerRadius: CGFloat = 10
     static let tailWidth: CGFloat = 14
     static let tailHeight: CGFloat = 9
-    static let maxLines = 3
 
     private static let textFont = NSFont.systemFont(ofSize: 13)
     private static let nameFont = NSFont.systemFont(ofSize: 10, weight: .semibold)
@@ -71,9 +70,12 @@ final class SpeechBubbleView: NSView {
         bodyLabel.isEditable = false
         bodyLabel.isSelectable = false
         bodyLabel.textColor = Self.bodyColor
-        bodyLabel.maximumNumberOfLines = Self.maxLines
-        bodyLabel.lineBreakMode = .byTruncatingTail
-        bodyLabel.cell?.truncatesLastVisibleLine = true
+        // 行数は制限せず、必要なぶん縦に伸ばす（省略して途中で切らない）
+        bodyLabel.maximumNumberOfLines = 0
+        bodyLabel.lineBreakMode = .byWordWrapping
+        bodyLabel.cell?.wraps = true
+        bodyLabel.cell?.truncatesLastVisibleLine = false
+        bodyLabel.preferredMaxLayoutWidth = Self.maxTextWidth
 
         addSubview(nameLabel)
         addSubview(bodyLabel)
@@ -92,8 +94,9 @@ final class SpeechBubbleView: NSView {
         nameLabel.textColor = Self.nameColor(for: line.speaker)
         bodyLabel.stringValue = line.text
 
-        nameSize = Self.measure(line.speaker.displayName, font: Self.nameFont, maxLines: 1)
-        textSize = Self.measure(line.text, font: Self.textFont, maxLines: Self.maxLines)
+        // 計測は表示に使う NSTextField 自身に任せる（boundingRect だとセルの余白ぶんずれて 1 行足りなくなる）
+        nameSize = Self.measure(nameLabel)
+        textSize = Self.measure(bodyLabel)
 
         let contentWidth = max(textSize.width, nameSize.width)
         let width = contentWidth + Self.horizontalPadding * 2
@@ -119,18 +122,12 @@ final class SpeechBubbleView: NSView {
         return lower...upper
     }
 
-    private static func measure(_ text: String, font: NSFont, maxLines: Int) -> NSSize {
-        guard !text.isEmpty else { return .zero }
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineBreakMode = .byWordWrapping
-        let attributes: [NSAttributedString.Key: Any] = [.font: font, .paragraphStyle: paragraph]
-        let bounding = (text as NSString).boundingRect(
-            with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: attributes)
-        let lineHeight = ceil(font.ascender - font.descender + font.leading)
-        let height = min(ceil(bounding.height), lineHeight * CGFloat(maxLines))
-        return NSSize(width: min(ceil(bounding.width) + 1, maxTextWidth), height: max(height, lineHeight))
+    /// ラベルが `maxTextWidth` 以内に折り返したときに必要なサイズ
+    private static func measure(_ label: NSTextField) -> NSSize {
+        guard !label.stringValue.isEmpty, let cell = label.cell else { return .zero }
+        let bounds = NSRect(x: 0, y: 0, width: maxTextWidth, height: 100_000)
+        let size = cell.cellSize(forBounds: bounds)
+        return NSSize(width: min(ceil(size.width), maxTextWidth), height: ceil(size.height))
     }
 
     // MARK: - レイアウト

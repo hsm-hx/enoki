@@ -31,6 +31,8 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
     static let tickInterval: TimeInterval = 60
     /// 開発用: 起動直後に一度しゃべらせる
     static let debugSpeakEnvironmentKey = "ENOKI_DEBUG_SPEAK_ON_LAUNCH"
+    /// 開発用: 起動直後にしゃべらせる会話 id を指定する（未指定なら ambient / pair からランダム）
+    static let debugSpeakIDEnvironmentKey = "ENOKI_DEBUG_SPEAK_ID"
 
     private let settings: AppSettings
     private weak var host: ConversationHost?
@@ -63,8 +65,16 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
         startTimer()
         if ProcessInfo.processInfo.environment[Self.debugSpeakEnvironmentKey] == "1" {
             Self.logger.info("\(Self.debugSpeakEnvironmentKey, privacy: .public)=1: 起動直後に 1 回しゃべります")
+            let debugID = ProcessInfo.processInfo.environment[Self.debugSpeakIDEnvironmentKey]
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                MainActor.assumeIsolated { self.speakNow() }
+                MainActor.assumeIsolated {
+                    if let debugID,
+                       let conversation = self.provider?.dialogueSet.conversations.first(where: { $0.id == debugID }) {
+                        self.present(conversation)
+                    } else {
+                        self.speakNow()
+                    }
+                }
             }
         }
     }
