@@ -622,6 +622,150 @@
           "text": "……そっか"
         }
       ]
+    },
+    {
+      "id": "casual_001",
+      "category": "pair",
+      "cooldown": 3600,
+      "profiles": [
+        "casual"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "……おつかれ。少し楽にしよ"
+        },
+        {
+          "speaker": "shiori",
+          "text": "はい。今日の仕事はここまでですね"
+        },
+        {
+          "speaker": "saku",
+          "text": "じゃあ、続きを作ろっか"
+        }
+      ]
+    },
+    {
+      "id": "casual_002",
+      "category": "ambient",
+      "cooldown": 3600,
+      "profiles": [
+        "casual"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "……肩の力、抜けてきたね"
+        }
+      ]
+    },
+    {
+      "id": "casual_003",
+      "category": "ambient",
+      "cooldown": 3600,
+      "profiles": [
+        "casual"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "わたしのメモも、ここでいったん閉じますね"
+        }
+      ]
+    },
+    {
+      "id": "casual_004",
+      "category": "pair",
+      "cooldown": 3600,
+      "profiles": [
+        "casual"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さく、今日はよく手が動いていましたね"
+        },
+        {
+          "speaker": "saku",
+          "text": "ひいらぎのおかげだよ。……少しだけね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_001",
+      "category": "renofa",
+      "cooldown": 3600,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "今日はレノファの日なんだね"
+        },
+        {
+          "speaker": "shiori",
+          "text": "はい。試合の時間は確認しましたか"
+        },
+        {
+          "speaker": "saku",
+          "text": "ちょっとそわそわするね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_002",
+      "category": "renofa",
+      "cooldown": 3600,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "レノファの日は、ひいらぎの手が早いです。記録しておきますね"
+        },
+        {
+          "speaker": "saku",
+          "text": "……ばれてるね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_003",
+      "category": "renofa",
+      "cooldown": 3600,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "きょうだけは、この色でいさせて"
+        },
+        {
+          "speaker": "shiori",
+          "text": "はい。よく似合っています"
+        }
+      ]
+    },
+    {
+      "id": "renofa_004",
+      "category": "renofa",
+      "cooldown": 3600,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎ、声はほどほどに。のどを痛めます"
+        },
+        {
+          "speaker": "saku",
+          "text": "僕は隣で静かに見てるよ"
+        }
+      ]
     }
   ]
 }

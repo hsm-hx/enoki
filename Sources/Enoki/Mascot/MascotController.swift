@@ -35,6 +35,22 @@ enum BundledResources {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
+    /// 内蔵の見た目プロファイル定義
+    static var profilesURL: URL? {
+        guard let bundle = resourceBundle else { return nil }
+        let url = bundle.bundleURL
+            .appendingPathComponent("Profiles", isDirectory: true)
+            .appendingPathComponent(AppearanceProfileLoader.fileName)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// 内蔵のスプライトセット置き場（Resources/Characters）
+    static var charactersURL: URL? {
+        guard let bundle = resourceBundle else { return nil }
+        let url = bundle.bundleURL.appendingPathComponent("Characters", isDirectory: true)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
     /// 内蔵の台詞ファイル
     static var dialogueURL: URL? {
         guard let bundle = resourceBundle else { return nil }
@@ -47,7 +63,7 @@ enum BundledResources {
 
 /// ウィンドウ・プレイヤー・状態機械・設定を結線する中心クラス。
 @MainActor
-final class MascotController: NSObject, MascotViewDelegate, ConversationHost {
+final class MascotController: NSObject, MascotViewDelegate, ConversationHost, AppearanceHost {
 
     private static let logger = Logger(subsystem: "com.enoki.mascot", category: "controller")
 
@@ -59,10 +75,14 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost {
     private let idleMonitor = IdleMonitor()
     private var machine: MascotStateMachine?
 
+    /// いま表示しているスキン（見た目プロファイルのスプライトセット、または baseSkin）
     private(set) var skin: Skin?
+    /// スキンメニューで選んでいるスキン（プロファイルのスプライトセットが無いときの行き先）
+    private(set) var baseSkin: Skin?
     private(set) var skinSource: SkinSource = .bundled
 
     private var conversation: ConversationCoordinator?
+    private var appearance: AppearanceCoordinator?
 
     private var idleSwitchTimer: DispatchSourceTimer?
     /// 省電力による一時停止（スクリーンスリープ・遮蔽など）
@@ -94,12 +114,15 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost {
 
         let conversation = ConversationCoordinator(settings: settings, host: self)
         self.conversation = conversation
+        let appearance = AppearanceCoordinator(settings: settings, host: self)
+        self.appearance = appearance
 
         registerObservers()
         Self.logger.info("内蔵スキン: \(BundledResources.defaultSkinURL?.path ?? "見つかりません", privacy: .public)")
         apply(machine.handle(.start, now: now))
         updateWindowVisibility()
         conversation.start(skinDirectory: skin.sourceURL)
+        appearance.start()
         Self.logger.info("スキン「\(skin.displayName, privacy: .public)」を \(self.skinSource.rawValue, privacy: .public) から読み込みました")
         Self.logger.info("アニメーション: \(Self.describeFrames(of: skin), privacy: .public)")
     }
@@ -129,7 +152,8 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost {
             for failure in resolution.failures {
                 Self.logger.error("スキン読み込み失敗 \(failure.url.path, privacy: .public): \(failure.error.localizedDescription, privacy: .public)")
             }
-            skin = resolution.skin
+            baseSkin = resolution.skin
+            if skin == nil { skin = resolution.skin }
             skinSource = resolution.source
             return true
         } catch {
@@ -145,14 +169,61 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost {
         }
     }
 
-    /// スキンを読み直して状態機械を作り直す
+    /// スキンを読み直して状態機械を作り直す。
+    /// ベーススキンが変わったら、見た目プロファイルの解決もやり直す（スプライトセットが無ければ新しいベースへ）。
     func reloadSkin() {
-        guard loadSkin(initial: false), let skin, let machine else { return }
-        machine.updateMapping(skin.mapping)
+        appearance?.invalidateSkinCache()
+        guard loadSkin(initial: false), let machine else { return }
+        let target = appearance?.resolvedSkinForCurrentProfile() ?? baseSkin
+        guard let target else { return }
+        skin = target
+        machine.updateMapping(target.mapping)
         apply(machine.handle(.skinReloaded, now: now))
-        conversation?.reloadDialogue(skinDirectory: skin.sourceURL)
-        Self.logger.info("スキンを再読み込みしました: \(skin.displayName, privacy: .public)")
+        conversation?.reloadDialogue(skinDirectory: target.sourceURL)
+        appearance?.reapplyAfterBaseSkinChange()
+        Self.logger.info("スキンを再読み込みしました: \(target.displayName, privacy: .public)")
     }
+
+    // MARK: - AppearanceHost（見た目プロファイル）
+
+    var currentSkin: Skin? { skin }
+    var appearanceWindow: NSWindow? { window }
+
+    /// プロファイル切り替え時のスキン差し替え。位置・倍率は resizeWindowIfNeeded（下端中央固定）に任せる。
+    func swapSkin(to newSkin: Skin) {
+        guard let machine else { return }
+        guard newSkin.sourceURL != skin?.sourceURL else { return }
+        player.stop()
+        skin = newSkin
+        machine.updateMapping(newSkin.mapping)
+        apply(machine.handle(.skinSwapped(availableAnimations: Set(newSkin.animations.keys)), now: now))
+        // 台詞もスプライトセットのフォルダを優先して読み直す（プロファイル専用の dialogue.json を置ける）
+        conversation?.reloadDialogue(skinDirectory: newSkin.sourceURL)
+        Self.logger.info("スキンを差し替えました: \(newSkin.displayName, privacy: .public)（\(newSkin.sourceURL.path, privacy: .public)）")
+    }
+
+    func cancelConversationBubble() {
+        conversation?.cancelBubble()
+    }
+
+    func playAppearanceTransition(named name: String) {
+        playConversationReaction(named: name)
+    }
+
+    func appearanceProfileDidChange(_ profile: AppearanceProfile) {
+        conversation?.profileChanged(profile)
+    }
+
+    /// メニュー・About 用
+    var appearanceProfiles: [AppearanceProfile] { appearance?.profiles ?? [] }
+    var currentAppearanceProfile: AppearanceProfile { appearance?.currentProfile ?? .fallbackDefault }
+    var isAppearanceManuallyOverridden: Bool { appearance?.isManuallyOverridden ?? false }
+    var appearanceSpriteSetDescription: String { appearance?.spriteSetDescription ?? "-" }
+
+    func selectAppearanceProfile(id: String) { appearance?.selectProfile(id: id) }
+    func clearAppearanceOverride() { appearance?.clearManualOverride() }
+    func setAppearanceAutoSwitch(_ enabled: Bool) { appearance?.setAutoSwitch(enabled) }
+    func setAppearanceStartupProfile(id: String?) { appearance?.setStartupProfile(id: id) }
 
     /// ユーザーがフォルダを選んだ
     func selectSkin(directory: URL) {
@@ -355,6 +426,9 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost {
             }
         case .activityMode:
             conversation?.activityModeChanged()
+            appearance?.activityModeChanged()
+        case .appearanceManualOverride, .appearanceAutoSwitch, .appearanceStartupProfileID:
+            appearance?.settingsDidChange(key: key)
         case .skinDirectory, .windowOriginX, .windowOriginY, .hasSavedWindowOrigin,
              .quietModeRaw, .quietUntil, .workEndHour, .conversationHistoryData:
             break

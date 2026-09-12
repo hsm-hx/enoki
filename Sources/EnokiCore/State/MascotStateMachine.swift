@@ -18,6 +18,9 @@ public final class MascotStateMachine {
         case animationFinished(token: Int)         // 非ループ再生の完了
         case setVisible(Bool)
         case skinReloaded
+        /// 見た目プロファイルの切り替えでスキンだけ差し替えた（状態はできるだけ引き継ぐ）。
+        /// 状態機械は Skin を知らないので、新しいスキンが持つアニメーション名を一緒に渡してもらう。
+        case skinSwapped(availableAnimations: Set<String>)
     }
 
     public enum Effect: Equatable {
@@ -129,6 +132,9 @@ public final class MascotStateMachine {
                 return []
             }
 
+        case .skinSwapped(let available):
+            return handleSkinSwap(available: available, now: now)
+
         case .animationFinished(let token):
             guard token == currentToken else { return [] }   // 古い再生の完了は無視
             switch state {
@@ -164,6 +170,44 @@ public final class MascotStateMachine {
     }
 
     // MARK: - 遷移の実装
+
+    /// スキン差し替え。同じ名前が新しいスキンにもあれば、その状態のまま再生し直す。
+    /// 名前が無ければ idle へ戻す（参照切れのまま再生してキャラクターが消えるのを防ぐ）。
+    private func handleSkinSwap(available: Set<String>, now: TimeInterval) -> [Effect] {
+        switch state {
+        case .hidden:
+            return []
+
+        case .idle(let name):
+            guard available.contains(name) else { return enterIdle(now: now) }
+            currentToken += 1
+            var effects: [Effect] = [.play(animation: name, loop: true, token: currentToken),
+                                     scheduleIdleSwitchEffect()]
+            effects.append(contentsOf: pollingEffect())
+            return effects
+
+        case .sleeping:
+            guard available.contains(mapping.sleepLoop) else { return enterIdle(now: now) }
+            // intro は繰り返さず、寝息ループから再開する
+            state = .sleeping(phase: .loop)
+            currentToken += 1
+            var effects: [Effect] = [.cancelIdleSwitch,
+                                     .play(animation: mapping.sleepLoop, loop: true, token: currentToken)]
+            effects.append(contentsOf: pollingEffect())
+            return effects
+
+        case .dragging:
+            guard available.contains(mapping.drag) else { return enterIdle(now: now) }
+            currentToken += 1
+            var effects: [Effect] = [.play(animation: mapping.drag, loop: true, token: currentToken)]
+            effects.append(contentsOf: pollingEffect())
+            return effects
+
+        case .reacting:
+            // 再生途中のリアクションは引き継がない
+            return enterIdle(now: now)
+        }
+    }
 
     private func handleIdleSample(_ seconds: TimeInterval, now: TimeInterval) -> [Effect] {
         switch state {

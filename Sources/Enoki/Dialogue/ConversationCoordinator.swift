@@ -39,6 +39,8 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
     private let presenter = ConversationPresenter()
     private let scheduler: ConversationScheduler
     private var provider: LocalDialogueProvider?
+    /// 現在の見た目プロファイル（§12）
+    private(set) var currentProfile: AppearanceProfile = .fallbackDefault
     private var timer: DispatchSourceTimer?
     /// 会話を選んでいる最中（async のあいだ二重に走らせない）
     private var isPicking = false
@@ -190,7 +192,10 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
         }
         presenter.cancel()
         isPicking = false
-        pick(context: makeContext(now: Date(), allowed: [.ambient, .pair], trigger: .manual),
+        // プロファイルが許すぶんだけに絞る（renofa なら「レノファ」の雑談も出る）
+        var allowed = currentProfile.allowedCategories(base: [.ambient, .pair, .renofa])
+        if allowed.isEmpty { allowed = [.ambient, .pair] }
+        pick(context: makeContext(now: Date(), allowed: allowed, trigger: .manual),
              provider: provider)
     }
 
@@ -208,6 +213,7 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
                                    lastShownAt: history.lastShownAt,
                                    trigger: trigger,
                                    activityMode: settings.activityMode,
+                                   profileID: currentProfile.id,
                                    minutesSinceSessionStart: max(0, minutes))
     }
 
@@ -238,6 +244,7 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
 
     private func syncScheduler() {
         scheduler.activityMode = settings.activityMode
+        scheduler.profile = currentProfile
         scheduler.quietMode = settings.quietMode
         scheduler.workEndHour = settings.workEndHour
         scheduler.setUserAway(host?.isUserAwayForConversation ?? false, now: Date())
@@ -252,6 +259,19 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
             scheduler.restartSession(at: Date())
         }
         Self.logger.info("仕事中モード: \(self.settings.activityMode.rawValue, privacy: .public)")
+    }
+
+    /// 見た目プロファイルが切り替わった（カテゴリの制限と `profiles` 指定の台詞に効く）
+    func profileChanged(_ profile: AppearanceProfile) {
+        guard profile != currentProfile else { return }
+        currentProfile = profile
+        scheduler.profile = profile
+        Self.logger.info("会話のプロファイル: \(profile.id, privacy: .public) 許可カテゴリ: \(self.scheduler.allowedCategories.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)")
+    }
+
+    /// 着替えの前などに吹き出しを消す
+    func cancelBubble() {
+        presenter.cancel()
     }
 
     /// 表示 / 非表示が切り替わった

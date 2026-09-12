@@ -82,6 +82,10 @@ public enum DialogueLoader {
                 continue
             }
             let cooldown = (entry["cooldown"] as? NSNumber)?.doubleValue ?? Conversation.defaultCooldown
+            // profiles: 見た目プロファイル専用の台詞（省略 = 全プロファイル共通）
+            let profiles = (entry["profiles"] as? [Any])
+                .map { $0.compactMap { $0 as? String } }
+                .flatMap { $0.isEmpty ? nil : $0 }
 
             let rawLines = entry["lines"] as? [Any] ?? []
             var lines: [DialogueLine] = []
@@ -113,7 +117,8 @@ public enum DialogueLoader {
             }
 
             seenIDs.insert(id)
-            conversations.append(Conversation(id: id, category: category, cooldown: cooldown, lines: lines))
+            conversations.append(Conversation(id: id, category: category, cooldown: cooldown,
+                                              lines: lines, profiles: profiles))
         }
 
         return DialogueLoadResult(set: DialogueSet(schemaVersion: schemaVersion, conversations: conversations),

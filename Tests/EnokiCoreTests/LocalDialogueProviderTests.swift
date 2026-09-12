@@ -95,4 +95,60 @@ final class LocalDialogueProviderTests: XCTestCase {
         let picked = await provider.nextConversation(context: context(allowed: [.pair]))
         XCTAssertEqual(picked?.id, "pair_1")
     }
+
+    // MARK: - 見た目プロファイル（§12）
+
+    private func profileProvider() -> LocalDialogueProvider {
+        let set = DialogueSet(conversations: [
+            conversation("ambient_common", .ambient),
+            Conversation(id: "ambient_casual", category: .ambient,
+                         lines: [DialogueLine(speaker: .saku, text: "casual")], profiles: ["casual"]),
+            Conversation(id: "renofa_1", category: .renofa,
+                         lines: [DialogueLine(speaker: .saku, text: "renofa")], profiles: ["renofa"]),
+        ])
+        let provider = LocalDialogueProvider(dialogueSet: set)
+        provider.randomIndex = { _ in 0 }
+        return provider
+    }
+
+    func testProfileSpecificConversationsAreOnlyUsedByThatProfile() {
+        let provider = profileProvider()
+        // default では profiles 指定のある会話は候補に入らない
+        var ctx = context(allowed: [.ambient, .renofa])
+        XCTAssertEqual(provider.pick(context: ctx)?.id, "ambient_common")
+        ctx.recentlyShownIDs = ["ambient_common"]
+        XCTAssertNil(provider.pick(context: ctx), "default では casual / renofa 専用の会話は出ない")
+    }
+
+    func testProfileSpecificConversationIsAvailableForItsProfile() {
+        let provider = profileProvider()
+        var ctx = context(allowed: [.ambient, .renofa])
+        ctx.profileID = "casual"
+        ctx.recentlyShownIDs = ["ambient_common"]
+        XCTAssertEqual(provider.pick(context: ctx)?.id, "ambient_casual")
+
+        var renofa = context(allowed: [.renofa])
+        renofa.profileID = "renofa"
+        XCTAssertEqual(provider.pick(context: renofa)?.id, "renofa_1")
+
+        // 共通の会話（profiles 無し）はどのプロファイルでも出る
+        var casualCommon = context(allowed: [.ambient])
+        casualCommon.profileID = "renofa"
+        XCTAssertEqual(provider.pick(context: casualCommon)?.id, "ambient_common")
+    }
+
+    func testManualTriggerStillRespectsProfile() {
+        let provider = profileProvider()
+        var ctx = context(allowed: [.ambient, .renofa], trigger: .manual)
+        ctx.recentlyShownIDs = ["ambient_common"]
+        ctx.lastShownAt = ["ambient_common": now]
+        // 条件をゆるめても、他プロファイル専用の会話までは出さない
+        XCTAssertEqual(provider.pick(context: ctx)?.id, "ambient_common")
+    }
+
+    func testWorkModeEnabledFollowsActivityMode() {
+        XCTAssertTrue(ConversationContext(now: now, allowedCategories: [], activityMode: .work).workModeEnabled)
+        XCTAssertFalse(ConversationContext(now: now, allowedCategories: [], activityMode: .rest).workModeEnabled)
+        XCTAssertEqual(ConversationContext(now: now, allowedCategories: []).profileID, AppearanceProfile.ID.default)
+    }
 }

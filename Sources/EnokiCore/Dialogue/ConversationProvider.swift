@@ -22,6 +22,10 @@ public struct ConversationContext: Equatable, Sendable {
     public var lastShownAt: [String: Date]
     public var trigger: Trigger
     public var activityMode: ActivityMode
+    /// 現在の見た目プロファイル id（§12）。`profiles` 指定のある会話はこの id を含むときだけ候補になる。
+    public var profileID: String
+    /// 仕事中モードが ON か（`activityMode == .work`）。台詞側の条件に使えるよう明示的に持つ。
+    public var workModeEnabled: Bool
     /// セッション（起動 or 仕事中モード ON）からの経過分
     public var minutesSinceSessionStart: Int
 
@@ -32,6 +36,8 @@ public struct ConversationContext: Equatable, Sendable {
                 lastShownAt: [String: Date] = [:],
                 trigger: Trigger = .scheduled,
                 activityMode: ActivityMode = .work,
+                profileID: String = AppearanceProfile.ID.default,
+                workModeEnabled: Bool? = nil,
                 minutesSinceSessionStart: Int = 0) {
         self.now = now
         self.allowedCategories = allowedCategories
@@ -40,6 +46,8 @@ public struct ConversationContext: Equatable, Sendable {
         self.lastShownAt = lastShownAt
         self.trigger = trigger
         self.activityMode = activityMode
+        self.profileID = profileID
+        self.workModeEnabled = workModeEnabled ?? (activityMode == .work)
         self.minutesSinceSessionStart = minutesSinceSessionStart
     }
 }
@@ -77,7 +85,10 @@ public final class LocalDialogueProvider: ConversationProvider {
 
     /// 同期版（テストと内部用）
     public func pick(context: ConversationContext) -> Conversation? {
-        let allowed = dialogueSet.conversations.filter { context.allowedCategories.contains($0.category) }
+        // カテゴリと見た目プロファイルで先に絞る（以降の「条件をゆるめる」段階でもこの 2 つは崩さない）
+        let allowed = dialogueSet.conversations.filter {
+            context.allowedCategories.contains($0.category) && $0.matches(profileID: context.profileID)
+        }
         guard !allowed.isEmpty else { return nil }
 
         // 直前と同じカテゴリは避ける。ただし allowed がそのカテゴリしか無いなら許可する。

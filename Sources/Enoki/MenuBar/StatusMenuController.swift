@@ -44,6 +44,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         add(title: "ちょっと話して", action: #selector(speakNow), state: false)
         menu.addItem(conversationMenuItem())
         add(title: "仕事中モード", action: #selector(toggleActivityMode), state: settings.activityMode == .work)
+        menu.addItem(appearanceMenuItem())
         menu.addItem(.separator())
 
         add(title: "常に最前面", action: #selector(toggleAlwaysOnTop), state: settings.alwaysOnTop)
@@ -162,6 +163,80 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         }
     }
 
+    /// 見た目プロファイル（§12）。設定画面は無いので、ここが設定 UI。
+    private func appearanceMenuItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "見た目 (Appearance)", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        let profiles = controller.appearanceProfiles
+        let current = controller.currentAppearanceProfile
+        let manualID = settings.appearanceManualOverride
+
+        let header = NSMenuItem(title: "現在: \(current.displayName)\(controller.isAppearanceManuallyOverridden ? "（手動）" : "（自動）")",
+                                action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        submenu.addItem(header)
+        submenu.addItem(.separator())
+
+        if profiles.isEmpty {
+            let empty = NSMenuItem(title: "プロファイルがありません", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            submenu.addItem(empty)
+        }
+        for profile in profiles {
+            let suffix = (profile.id == manualID) ? "（手動）" : ""
+            let sub = NSMenuItem(title: profile.displayName + suffix,
+                                 action: #selector(selectAppearanceProfile(_:)), keyEquivalent: "")
+            sub.target = self
+            sub.representedObject = profile.id
+            sub.state = (profile.id == current.id) ? .on : .off
+            submenu.addItem(sub)
+        }
+        submenu.addItem(.separator())
+
+        let auto = NSMenuItem(title: "仕事中モードと連動して切り替え",
+                              action: #selector(toggleAppearanceAutoSwitch), keyEquivalent: "")
+        auto.target = self
+        auto.state = settings.appearanceAutoSwitch ? .on : .off
+        submenu.addItem(auto)
+
+        // 手動選択が無いときは action を付けずに（= 自動で無効化されるように）置く
+        let hasOverride = manualID != nil
+        let clear = NSMenuItem(title: "手動選択を解除して自動に戻す",
+                               action: hasOverride ? #selector(clearAppearanceOverride) : nil,
+                               keyEquivalent: "")
+        clear.target = hasOverride ? self : nil
+        clear.isEnabled = hasOverride
+        submenu.addItem(clear)
+
+        submenu.addItem(startupProfileMenuItem(profiles: profiles))
+
+        item.submenu = submenu
+        return item
+    }
+
+    /// 起動時のプロファイル（ラジオ）
+    private func startupProfileMenuItem(profiles: [AppearanceProfile]) -> NSMenuItem {
+        let item = NSMenuItem(title: "起動時のプロファイル", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        let current = settings.appearanceStartupProfileID
+
+        var choices: [(title: String, id: String?)] = [
+            ("前回の状態", nil),
+            ("自動", AppearanceResolver.automaticStartupID),
+        ]
+        choices.append(contentsOf: profiles.map { ($0.displayName, $0.id) })
+
+        for choice in choices {
+            let sub = NSMenuItem(title: choice.title, action: #selector(setStartupProfile(_:)), keyEquivalent: "")
+            sub.target = self
+            sub.representedObject = choice.id ?? ""
+            sub.state = (current ?? "") == (choice.id ?? "") ? .on : .off
+            submenu.addItem(sub)
+        }
+        item.submenu = submenu
+        return item
+    }
+
     private func skinMenuItem() -> NSMenuItem {
         let item = NSMenuItem(title: "スキン", action: nil, keyEquivalent: "")
         let submenu = NSMenu()
@@ -255,6 +330,25 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         settings.sleepAfterSeconds = value
     }
 
+    @objc private func selectAppearanceProfile(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        controller.selectAppearanceProfile(id: id)
+        Self.logger.info("見た目プロファイルを選択: \(id, privacy: .public)")
+    }
+
+    @objc private func toggleAppearanceAutoSwitch() {
+        controller.setAppearanceAutoSwitch(!settings.appearanceAutoSwitch)
+    }
+
+    @objc private func clearAppearanceOverride() {
+        controller.clearAppearanceOverride()
+    }
+
+    @objc private func setStartupProfile(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String else { return }
+        controller.setAppearanceStartupProfile(id: raw.isEmpty ? nil : raw)
+    }
+
     @objc private func selectSkin(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
         controller.selectSkin(directory: url)
@@ -305,6 +399,8 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         alert.informativeText = """
         デスクトップに常駐するマスコットです。
 
+        見た目: \(controller.currentAppearanceProfile.displayName)（\(controller.currentAppearanceProfile.id)）\(controller.isAppearanceManuallyOverridden ? " 手動" : " 自動")
+        スプライトセット: \(controller.appearanceSpriteSetDescription)
         スキン: \(controller.skinDisplayName)
         読み込み元: \(abbreviate(controller.skinDirectoryURL?.path ?? "-"))
         台詞: \(abbreviate(controller.dialogueSourceURL?.path ?? "(読み込みなし)"))

@@ -32,7 +32,7 @@ Dock には出ません（`LSUIElement`）。
 |---|---|---|
 | `EnokiCore` | Foundation / CoreGraphics / ImageIO | AppKit に依存しない純ロジック。スキンの読み込み、状態遷移、位置計算、設定。**テスト対象はここ。** |
 | `Enoki` | AppKit + `EnokiCore` | 実行ファイル。ウィンドウ・描画・タイマー・メニューバー・システム連携。 |
-| `EnokiCoreTests` | XCTest + `EnokiCore` | 74 件のユニットテスト。 |
+| `EnokiCoreTests` | XCTest + `EnokiCore` | 106 件のユニットテスト。 |
 
 ### ファイル
 
@@ -55,6 +55,9 @@ Sources/EnokiCore/
   Dialogue/ConversationHistory.swift  会話履歴（UserDefaults へ JSON 保存）
   Dialogue/ConversationProvider.swift ConversationContext と会話の選択（差し替え可能）
   Dialogue/ConversationScheduler.swift いつ・どのカテゴリを話すか（純ロジック）
+  Appearance/AppearanceProfile.swift       見た目プロファイルの定義と allowedCategories
+  Appearance/AppearanceProfileLoader.swift profiles.json のローダ（壊れた項目だけ捨てる）
+  Appearance/AppearanceResolver.swift      どのプロファイルで立つかを決める純関数
 
 Sources/Enoki/
   main.swift                     NSApplication のセットアップ
@@ -64,9 +67,12 @@ Sources/Enoki/
   Mascot/SpritePlayer.swift      コマ送り（DispatchSourceTimer をコマごとに再スケジュール）
   Mascot/MascotController.swift  全部の結線（+ 内蔵リソースの解決）
   MenuBar/StatusMenuController.swift  NSStatusItem とメニュー
+  Appearance/AppearanceCoordinator.swift  プロファイルの解決・スプライトセットの探索・フェード付き差し替え
   System/IdleMonitor.swift       無操作時間のポーリング
   System/LoginItemManager.swift  SMAppService によるログイン項目
   Resources/DefaultSkin/         内蔵スキン（pet.json + spritesheet.png）
+  Resources/Profiles/profiles.json  見た目プロファイルの定義（§12）
+  Resources/Characters/          内蔵スプライトセット置き場（現在は README のみ）
   Resources/AppIcon/icon-1024.png
 ```
 
@@ -184,6 +190,9 @@ stateDiagram-v2
 | `reacting` | `waving` か `jumping` からランダム（非ループ） | 完了後 300ms はクリックを無視 |
 | `hidden` | なし | タイマー全停止 |
 
+- **見た目プロファイルでスキンを差し替えたとき**（`.skinSwapped`）は、状態をできるだけ引き継ぎます。
+  idle は同じ名前が新しいスキンにもあればそのまま、無ければ idle を選び直し。sleeping は
+  導入を繰り返さず寝息ループから、dragging はドラッグのまま、reacting は idle へ戻します（§12）。
 - リアクション中のクリックは無視します（デバウンス）。
 - 会話の行に `reaction` が書かれていると、`.reactionRequested(name:)` で同じ経路を通って
   そのアニメーションを 1 回再生します（idle / sleeping のときだけ。§11.9）。
@@ -321,6 +330,13 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
                         ─
                         ✓通常 / 1時間静かにする / 今日の仕事終了まで静かにする / 会話OFF
 ✓ 仕事中モード
+  見た目 (Appearance) ▸ 現在: Work（自動）
+                        ─
+                        Default / ✓Work / Casual / Renofa（手動選択中は「（手動）」付き）
+                        ─
+                        ✓仕事中モードと連動して切り替え
+                        手動選択を解除して自動に戻す（手動選択が無ければ無効）
+                        起動時のプロファイル ▸ ✓前回の状態 / 自動 / 各プロファイル
 ──────────
 ✓ 常に最前面
   クリック透過（ドラッグ・クリック不可）
@@ -353,8 +369,11 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
 - **表示倍率の変更**: 足元（下端中央）を固定したままサイズが変わります。
 - **ちょっと話して**: その場で 1 つ会話を出します（`ambient` / `pair` から。quiet 中でも出ます）。
 - **会話**: 静かにする期間を選びます。`until` が過ぎたら自動的に「通常」へ戻ります（§11.7）。
-- **仕事中モード**: OFF にすると `ambient` / `pair` だけになります。ON にした時刻から
-  休憩・水分の周期を数え直します。
+- **仕事中モード**: OFF にすると仕事の声かけ（`work` / `water` / `break` / `lunch`）を止めます。
+  ON にした時刻から休憩・水分の周期を数え直します。切り替えたときは見た目プロファイルの
+  手動選択も解除されます（`special` なプロファイルを除く。§12）。
+- **見た目 (Appearance)**: プロファイルを手動で選ぶ／自動に戻す／起動時の初期値を決めます。
+  設定ウィンドウは無いので、ここが見た目プロファイルの設定 UI です（§12）。
 
 ### 設定キー（UserDefaults）
 
@@ -373,6 +392,9 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
 | `quietUntil` | Double | なし（`quietModeRaw` が `until` / `untilEndOfWorkDay` のときの解除時刻・UNIX 秒） |
 | `workEndHour` | Int | `18`（0〜23） |
 | `conversationHistoryData` | Data | なし（会話履歴の JSON） |
+| `appearanceManualOverride` | String? | なし（メニューで選んだプロファイル id。無ければ自動） |
+| `appearanceAutoSwitch` | Bool | `true`（仕事中モードと連動して切り替える） |
+| `appearanceStartupProfileID` | String? | なし（= 前回の状態を復元。`"auto"` で自動、または profile id） |
 
 ```bash
 # 設定を全部消したいとき
@@ -458,6 +480,12 @@ make clean
   （`ConversationScheduler` の定数）。`workEndHour` だけが設定（既定 18 時）です。
 - **台詞に書いた `reaction` は、スキンに同名のアニメーションがあるときだけ**再生されます。
   同梱の台詞には `reaction` が入っていないので、既定では使われません。
+- **見た目プロファイル用のスプライトは同梱していません。** `work` / `casual` / `renofa` の
+  `spriteSet` はどこにも置かれていないので、いまは 4 プロファイルとも
+  **ベーススキンにフォールバック**して動きます（見た目は変わらず、台詞のカテゴリ制限だけが効きます）。
+  素材の置き方は §12.3。
+- **時刻ベースの自動切替（試合日など）は未実装**です。`AppearanceResolver.resolve` の
+  `scheduled` 引数がフックとして空いているだけで、MVP では常に `nil` です（§12.7）。
 
 ---
 
@@ -512,8 +540,9 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 
 解決順（先に見つかったほうを使います）:
 
-1. **使用中スキンフォルダの `dialogue.json`**（例: `~/.codex/pets/sakushio_pet/dialogue.json`）
-2. アプリ内蔵の `Resources/DialogueText/dialogue.json`（42 会話）
+1. **いま表示中のスキンフォルダの `dialogue.json`**（例: `~/.codex/pets/sakushio_pet/dialogue.json`）。
+   見た目プロファイルでスプライトセットに切り替わっているときは、そのフォルダを見ます（§12.5）。
+2. アプリ内蔵の `Resources/DialogueText/dialogue.json`（50 会話）
 
 読み込みに失敗した場合は**会話機能だけ**が無効になります（マスコットは普通に動きます）。
 
@@ -540,8 +569,9 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 | `schema_version` | Int | `1` | 形式のバージョン。未知の値でも読み込みます。 |
 | `character_ids` | [String] | — | 参考情報。ローダは見ていません。 |
 | `dialogues[].id` | String | **必須** | 会話 ID。重複するとその会話を捨てます。 |
-| `dialogues[].category` | String | **必須** | `work` / `water` / `break` / `lunch` / `encouragement` / `ambient` / `pair`。 |
+| `dialogues[].category` | String | **必須** | `work` / `water` / `break` / `lunch` / `encouragement` / `ambient` / `pair` と、プロファイル用の `renofa` / `renofa_pre_match` / `renofa_match` / `renofa_post_match`（§12.5）。 |
 | `dialogues[].cooldown` | 秒 | `3600` | 同じ会話を再び選べるようになるまでの秒数。 |
+| `dialogues[].profiles` | [String]? | `null` | 使ってよい見た目プロファイル id（省略 = 全プロファイル共通）。§12.5 |
 | `dialogues[].lines[].speaker` | String | **必須** | `saku`（朔・左） / `shiori`（栞・右）。 |
 | `dialogues[].lines[].text` | String | **必須** | 1 発言。目安 30 文字程度（最大 3 行、超えると末尾省略）。 |
 | `dialogues[].lines[].reaction` | String? | `null` | その発言に合わせて再生するアニメーション名（スキンに無ければ無視）。 |
@@ -557,7 +587,7 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 `ConversationCoordinator` が 60 秒ごとに `evaluate(now:)` を呼び、返ってきた
 カテゴリ候補（**優先順**）を `allowedCategories` として Provider に渡します。空なら黙ります。
 
-優先順: **lunch > water > break > work > encouragement > ambient / pair**
+優先順: **lunch > water > break > work > encouragement > renofa 系 > ambient / pair**
 
 | ルール | 条件 |
 |---|---|
@@ -568,6 +598,7 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 | `encouragement` | **13:00〜18:00**。前回から **90 分 ±20 分** |
 | `work`（仕事に戻る） | break か lunch を出してから **10〜15 分後に 1 回だけ** |
 | `ambient` / `pair` | どちらかを **40〜90 分ごと**。work モードでは優先順位が最後なので頻度は低い。 |
+| `renofa` 系 | `ambient` と同じ周期（基準時刻も共有）。優先順位は `ambient` の直前。プロファイルが許可したときだけ候補に入る（§12.5）。 |
 
 - **直前に出したカテゴリはスキップ**します。
 - 次のときは常に空（＝黙る）を返します: **quiet 中 / 離席中（マスコットがスリープ状態）/ 非表示中**。
@@ -586,7 +617,7 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 
 ### 11.4 会話の選び方（`LocalDialogueProvider`）
 
-1. `allowedCategories` で絞る
+1. `allowedCategories` と **現在のプロファイル**（会話の `profiles`）で絞る
 2. クールダウン中（`lastShownAt + cooldown > now`）の会話を除く
 3. 直前と同じカテゴリを除く（ただし allowed がそのカテゴリしか無ければ許可）
 4. 最近出した id（`recentlyShownIDs`）を除く
@@ -623,9 +654,9 @@ LLM 版を足す手順:
 - アプリを組み直さずに差し替えるなら、**使用中スキンのフォルダに `dialogue.json` を置きます**
   （例: `~/.codex/pets/sakushio_pet/dialogue.json`）。こちらが内蔵より優先されます。
   メニューの「スキン > 再読み込み」で台詞も読み直します。
-- 同梱ファイルの内容は `DialogueLoaderTests` が検証しています（42 会話 = 7 カテゴリ × 6、
-  id の重複なし、speaker は `saku` / `shiori` のみ、1 会話 4 発言まで）。
-  件数を変えたらテストの期待値も直してください。
+- 同梱ファイルの内容は `DialogueLoaderTests` が検証しています（全 50 会話。プロファイル共通は
+  42 会話 = 7 カテゴリ × 6、`casual` 専用が 4、`renofa` 専用が 4。id の重複なし、
+  speaker は `saku` / `shiori` のみ、1 会話 4 発言まで）。件数を変えたらテストの期待値も直してください。
 
 ### 11.7 Quiet Mode / 仕事中モード
 
@@ -642,8 +673,11 @@ LLM 版を足す手順:
 
 | モード | 使うカテゴリ |
 |---|---|
-| `work`（既定・チェックあり） | 7 カテゴリ全部（work / water / break / lunch / encouragement が主役） |
-| `rest`（チェックを外す） | `ambient` / `pair` だけ |
+| `work`（既定・チェックあり） | 全カテゴリ（work / water / break / lunch / encouragement が主役） |
+| `rest`（チェックを外す） | 仕事の声かけ（`work` / `water` / `break` / `lunch`）以外。`encouragement` / `ambient` / `pair` と、プロファイルが許せば `renofa` 系 |
+
+ここからさらに **見た目プロファイル**（§12）が絞り込みます（例: `casual` は
+`ambient` / `pair` / `encouragement` だけ）。
 
 仕事中モードを ON にした時刻が、新しい「セッション開始」になります（休憩・水分の周期がそこから数え直しになります）。
 
@@ -678,7 +712,184 @@ idle / sleeping のときだけ、既存の `reacting` 経路でそのアニメ�
 
 ---
 
-## 12. 将来の拡張ポイント
+## 12. 見た目プロファイル (Appearance Profiles)
+
+「いまどんな見た目で、どんな話をするか」をひとまとめにした設定です。仕事中は Work、
+仕事が終わったら Casual、といった切り替えを、**スプライトセットの差し替え + 台詞カテゴリの制限**
+だけで表現します。
+
+> **プライバシー: ここでも監視も通信もしません。**
+> 試合日や天気を取りに行くことはありません（ネットワークコードはゼロのままです）。
+> 見ているのは「設定・仕事中モード・手動選択」だけで、切り替えは完全にローカルです。
+
+### 12.1 アーキテクチャ
+
+```
+  profiles.json ──► AppearanceProfileLoader ──► [AppearanceProfile]
+                                                      │
+  AppSettings                                         │
+   appearanceManualOverride ─┐                        │
+   appearanceAutoSwitch ─────┼──► AppearanceState ────┤
+   activityMode ─────────────┘                        ▼
+                          （将来）scheduled ──► AppearanceResolver.resolve() ──► profile id
+                                                      │
+                                                      ▼
+                                         AppearanceCoordinator（@MainActor）
+                                    ┌─────────────────┼──────────────────┐
+                                    ▼                 ▼                  ▼
+                        spriteSet のフォルダ探索   フェード + swapSkin   ConversationCoordinator
+                        （3 か所 → 無ければ         （0.15s → 0.2s）     （カテゴリ制限・profiles）
+                          ベーススキン）
+                                                      │
+                                                      ▼
+                              MascotStateMachine `.skinSwapped(availableAnimations:)`
+                              （idle / sleeping / dragging を引き継ぐ。§5）
+```
+
+- `EnokiCore/Appearance/` は AppKit 非依存の純ロジック（テスト対象）。
+  どのプロファイルになるかは `AppearanceResolver.resolve` という純関数だけで決まります。
+- `Enoki/Appearance/AppearanceCoordinator.swift` が AppKit 側（フォルダ探索・スキン読み込み・
+  フェード・結線）を担当します。
+- **設定ウィンドウはありません。** メニューの「見た目 (Appearance)」が設定 UI です（§7）。
+
+### 12.2 `profiles.json` の仕様
+
+`Sources/Enoki/Resources/Profiles/profiles.json`（アプリに同梱）:
+
+```json
+{
+  "schema_version": 1,
+  "profiles": [
+    {"id": "default", "displayName": "Default", "spriteSet": null, "special": false},
+    {"id": "work", "displayName": "Work", "spriteSet": "saku_shiori_work", "special": false},
+    {"id": "casual", "displayName": "Casual", "spriteSet": "saku_shiori_casual",
+     "dialogueCategories": ["ambient", "pair", "encouragement"],
+     "disabledDialogueCategories": ["work"], "special": false},
+    {"id": "renofa", "displayName": "Renofa", "spriteSet": "saku_shiori_renofa",
+     "dialogueCategories": ["renofa", "ambient", "pair", "encouragement"],
+     "disabledDialogueCategories": ["work"], "special": true}
+  ]
+}
+```
+
+| キー | 型 | 既定 | 意味 |
+|---|---|---|---|
+| `id` | String | **必須** | プロファイル id。空・重複はその項目だけ捨てます。 |
+| `displayName` | String | `id` | メニューに出す名前。 |
+| `spriteSet` | String? | `null` | スプライトセットのフォルダ名。`null` ならベーススキン（スキンメニューで選んでいるスキン）。 |
+| `dialogueCategories` | [String]? | `null` | 使ってよい台詞カテゴリ。`null` = 制限しない。未知の名前は無視。 |
+| `disabledDialogueCategories` | [String] | `[]` | 使わないカテゴリ。`dialogueCategories` より強い。 |
+| `special` | Bool | `false` | `true` なら仕事中モードを切り替えても手動選択が残る（§12.6）。 |
+| `transitionAnimation` | String? | `null` | 着替え後に 1 回だけ再生するアニメーション名（新しいスキンに無ければ無視）。 |
+
+- 未知のキーは無視します。壊れた項目だけを捨てて残りを読み込みます（`dialogue.json` と同じ流儀）。
+- `default` が無ければ自動的に補います。
+- 使ってよいカテゴリは
+  **`仕事中モードが許すカテゴリ` ∩ `dialogueCategories`（あれば） − `disabledDialogueCategories`** です。
+- **Swift 側にプロファイル id をハードコードしていません。** 解決ロジックが名前で参照するのは
+  `default` / `work` / `casual` の 3 つだけ（`AppearanceProfile.ID`）で、それ以外は JSON の自由です。
+
+### 12.3 スプライトセットの追加方法
+
+`spriteSet` の名前は **フォルダ名** です。次の順に探し、最初に見つかったものを使います。
+
+1. `~/.codex/pets/<spriteSet>/`
+2. `~/Library/Application Support/Enoki/Characters/<spriteSet>/`
+3. アプリ内蔵の `Resources/Characters/<spriteSet>/`
+
+フォルダの中身は**既存のスキンとまったく同じ形式**です（§6）。`pet.json` + スプライトシートでも、
+`manifest.json` + ストリップでも構いません。読み込みには同じ `SkinLoader` を使います。
+
+```
+~/.codex/pets/saku_shiori_casual/
+  pet.json
+  spritesheet.png
+```
+
+- **どこにも無い／読めない場合はベーススキンにフォールバック**し、`os.Logger`（category `appearance`）に
+  info ログを出します。マスコットは止まりません。
+- 現在このリポジトリにスプライトは同梱していないので、**4 プロファイルとも全部フォールバック**で動きます
+  （これが正常な状態です）。
+- `saku_shiori_renofa` は **ユーザーが用意したローカル素材専用**です。クラブのロゴ・商標・選手名を含む
+  素材はアプリに同梱しません（配布しません）。台詞でも「レノファ」という名称だけを使っています。
+
+### 12.4 プロファイルの追加方法
+
+`profiles.json` に 1 項目足すだけです（Swift の変更は不要）。
+
+```json
+{"id": "winter", "displayName": "Winter", "spriteSet": "saku_shiori_winter",
+ "dialogueCategories": ["ambient", "pair", "encouragement"], "special": false}
+```
+
+メニューの「見た目 (Appearance)」と「起動時のプロファイル」に自動で並びます。
+素材を置かなければベーススキンのまま、台詞の制限だけが効きます。
+
+### 12.5 Dialogue との連携
+
+- 会話に `"profiles": ["casual"]` を書くと、**そのプロファイルのときだけ**候補になります。
+  省略（`null`）なら全プロファイル共通です。
+- プロファイルの `dialogueCategories` / `disabledDialogueCategories` は
+  `ConversationScheduler`（どのカテゴリを話してよいか）と `LocalDialogueProvider`（どの会話を選ぶか）の
+  両方に効きます。
+- 同梱の台詞には `casual` 専用が 4 会話（`ambient` / `pair`）、`renofa` 専用が 4 会話（`renofa`）入っています。
+- カテゴリ `renofa` / `renofa_pre_match` / `renofa_match` / `renofa_post_match` を追加しました。
+  スケジューラ上は `ambient` と同じ周期（40〜90 分・基準時刻も共有）で、優先順位は `ambient` の直前です。
+  試合前／試合中／試合後の 3 つは**将来の時刻ベース切替（§12.7）用の置き場**で、同梱の台詞はまだありません。
+- **スプライトセットのフォルダに `dialogue.json` を置くと、そのプロファイル専用の台詞になります。**
+  台詞の解決順は「いま表示中のスキンフォルダ → 内蔵」なので（§11.2）、
+  例えば `~/.codex/pets/saku_shiori_renofa/dialogue.json` はそのプロファイルのときだけ使われます。
+
+### 12.6 Work Mode との優先順位・手動選択
+
+`AppearanceResolver.resolve` の優先順位:
+
+1. **`manualOverride`**（メニューで選んだプロファイル。`profiles.json` に無ければ無視）
+2. **`scheduled`**（将来の時刻ベース切替フック。MVP では常に `nil`）
+3. **`autoSwitch` が ON なら仕事中モード**: `work` → `work` プロファイル、それ以外 → `casual` プロファイル
+4. **`default`**
+
+仕事中モードを切り替えたときは、`AppearanceResolver.overrideAfterActivityModeChange` で
+手動選択を見直します。
+
+| 手動選択 | 仕事中モードを切り替えると |
+|---|---|
+| 通常のプロファイル（`special: false`） | **解除**して自動ルールに戻る（ユーザーが自分でモードを変えたのだから） |
+| `special: true`（`renofa` など） | **保持**する（「今日はこの見た目でいたい」を優先。Work Mode OFF でも上書きされない） |
+| なし | 何もしない |
+
+「手動選択を解除して自動に戻す」はメニューからいつでも実行できます（手動選択が無いときは無効）。
+
+### 12.7 起動時プロファイルと将来の時刻ベース切替
+
+`appearanceStartupProfileID`（メニュー「起動時のプロファイル」）:
+
+| 設定 | 起動時の動き |
+|---|---|
+| なし（既定・「前回の状態」） | 前回の手動選択をそのまま復元する |
+| `"auto"`（「自動」） | 手動選択を解除して、仕事中モードの自動ルールから始める |
+| プロファイル id | 毎回そのプロファイルを手動選択した状態で始める |
+
+時刻ベースの自動切替（例: 試合日は `renofa`、12 月は `christmas`）は、
+`AppearanceResolver.resolve(state:activityMode:scheduled:profiles:)` の
+**`scheduled` 引数がフックとして空いている**だけで、MVP では常に `nil` を渡しています。
+将来入れるときは「日付 → プロファイル id」を返す純関数を `EnokiCore/Appearance/` に足し、
+`AppearanceCoordinator` から `scheduled` に渡します（`manualOverride` より弱く、`autoSwitch` より強い）。
+**そのときもネットワークは使わず、ローカルの設定・カレンダー計算だけで決めます。**
+
+### 12.8 切り替えの見え方
+
+- マスコット窓を **0.15 秒フェードアウト → スキン差し替え → 0.2 秒フェードイン**します。
+  出ていた吹き出しは先に消します。
+- ウィンドウ位置・表示倍率は変わりません（差し替え後のサイズ変更は既存の「下端中央固定」に任せ、
+  保存済みの位置も書き換えません）。
+- 解決先のスキンが**いま表示中のスキンと同じフォルダなら、読み直しも差し替えもしません**
+  （スプライト未配置で全プロファイルがフォールバックしている今は、この経路になります）。
+- `transitionAnimation` が新しいスキンにあれば、フェードイン後に 1 回だけ再生します（「着替え」の演出）。
+
+---
+
+## 13. 将来の拡張ポイント
 
 | やりたいこと | 触る場所 |
 |---|---|
@@ -690,3 +901,5 @@ idle / sleeping のときだけ、既存の `reacting` 経路でそのアニメ�
 | 外部から状態を通知（CI 失敗で `failed` を出す等） | `DistributedNotificationCenter` か、`~/Library/Application Support` 配下のファイル監視を `System/` に追加し、`MascotController` から `Event` を流す。 |
 | 複数体の表示 | `MascotController` を複数インスタンス化できるようにし、`AppSettings` をインスタンスごとの suite 名に分ける。 |
 | スキンのホットリロード | `System/` に `DispatchSource.makeFileSystemObjectSource` ベースの監視を足し、`MascotController.reloadSkin()` を呼ぶ。 |
+| 見た目プロファイルを増やす | `Sources/Enoki/Resources/Profiles/profiles.json` に 1 項目足す（§12.4）。Swift の変更は不要。 |
+| 時刻ベースで見た目を切り替える | 「日付 → プロファイル id」を返す純関数を `EnokiCore/Appearance/` に足し、`AppearanceCoordinator` から `AppearanceResolver.resolve` の `scheduled` に渡す（§12.7）。 |

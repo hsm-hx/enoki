@@ -33,6 +33,9 @@ public final class AppSettings {
         case quietUntil
         case workEndHour
         case conversationHistoryData
+        case appearanceManualOverride
+        case appearanceAutoSwitch
+        case appearanceStartupProfileID
     }
 
     /// userInfo["key"] に `Key.rawValue` が入る
@@ -59,6 +62,7 @@ public final class AppSettings {
             Key.hasSavedWindowOrigin.rawValue: false,
             Key.activityMode.rawValue: ActivityMode.work.rawValue,
             Key.workEndHour.rawValue: QuietMode.defaultWorkEndHour,
+            Key.appearanceAutoSwitch.rawValue: true,
         ])
     }
 
@@ -180,6 +184,45 @@ public final class AppSettings {
             }
             post(.conversationHistoryData)
         }
+    }
+
+    // MARK: - 見た目プロファイル（§12）
+
+    /// メニューで選んだプロファイル id（nil = 自動）
+    public var appearanceManualOverride: String? {
+        get { defaults.string(forKey: Key.appearanceManualOverride.rawValue) }
+        set {
+            if let newValue, !newValue.isEmpty {
+                set(newValue, for: .appearanceManualOverride)
+            } else {
+                defaults.removeObject(forKey: Key.appearanceManualOverride.rawValue)
+                post(.appearanceManualOverride)
+            }
+        }
+    }
+
+    /// 仕事中モードと連動してプロファイルを切り替えるか（既定 true）
+    public var appearanceAutoSwitch: Bool {
+        get { defaults.bool(forKey: Key.appearanceAutoSwitch.rawValue) }
+        set { set(newValue, for: .appearanceAutoSwitch) }
+    }
+
+    /// 起動時のプロファイル（nil = 前回の状態を復元、"auto" = 自動、それ以外 = その id）
+    public var appearanceStartupProfileID: String? {
+        get { defaults.string(forKey: Key.appearanceStartupProfileID.rawValue) }
+        set {
+            if let newValue, !newValue.isEmpty {
+                set(newValue, for: .appearanceStartupProfileID)
+            } else {
+                defaults.removeObject(forKey: Key.appearanceStartupProfileID.rawValue)
+                post(.appearanceStartupProfileID)
+            }
+        }
+    }
+
+    /// 解決に渡す状態
+    public var appearanceState: AppearanceState {
+        AppearanceState(manualOverride: appearanceManualOverride, autoSwitch: appearanceAutoSwitch)
     }
 
     public static func clampScale(_ value: Double) -> Double {

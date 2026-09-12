@@ -31,6 +31,11 @@ public enum DialogueCategory: String, Codable, CaseIterable, Sendable {
     case encouragement   // 励まし
     case ambient         // 独り言・雰囲気
     case pair            // 2 人の会話
+    // 見た目プロファイル専用のカテゴリ（§12）。プロファイルが許可したときだけ候補に入る。
+    case renofa                                      // レノファの日の雑談
+    case renofaPreMatch = "renofa_pre_match"         // 試合前（将来の時刻ベース切替フック用）
+    case renofaMatch = "renofa_match"                // 試合中
+    case renofaPostMatch = "renofa_post_match"       // 試合後
 
     public var localizedName: String {
         switch self {
@@ -41,6 +46,10 @@ public enum DialogueCategory: String, Codable, CaseIterable, Sendable {
         case .encouragement: return "励まし"
         case .ambient:       return "雰囲気"
         case .pair:          return "2人の会話"
+        case .renofa:          return "レノファ"
+        case .renofaPreMatch:  return "レノファ（試合前）"
+        case .renofaMatch:     return "レノファ（試合中）"
+        case .renofaPostMatch: return "レノファ（試合後）"
         }
     }
 }
@@ -68,19 +77,23 @@ public struct Conversation: Codable, Equatable, Identifiable, Sendable {
     /// 同じ会話を再び選んでよくなるまでの秒数
     public let cooldown: TimeInterval
     public let lines: [DialogueLine]
+    /// この会話を使ってよい見た目プロファイル id（nil = 全プロファイル共通）
+    public let profiles: [String]?
 
     public init(id: String,
                 category: DialogueCategory,
                 cooldown: TimeInterval = Conversation.defaultCooldown,
-                lines: [DialogueLine]) {
+                lines: [DialogueLine],
+                profiles: [String]? = nil) {
         self.id = id
         self.category = category
         self.cooldown = cooldown
         self.lines = lines
+        self.profiles = profiles
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, category, cooldown, lines
+        case id, category, cooldown, lines, profiles
     }
 
     public init(from decoder: Decoder) throws {
@@ -89,6 +102,13 @@ public struct Conversation: Codable, Equatable, Identifiable, Sendable {
         category = try container.decode(DialogueCategory.self, forKey: .category)
         cooldown = try container.decodeIfPresent(TimeInterval.self, forKey: .cooldown) ?? Conversation.defaultCooldown
         lines = try container.decode([DialogueLine].self, forKey: .lines)
+        profiles = try container.decodeIfPresent([String].self, forKey: .profiles)
+    }
+
+    /// このプロファイルで使ってよい会話か（`profiles` が無ければ共通）
+    public func matches(profileID: String) -> Bool {
+        guard let profiles, !profiles.isEmpty else { return true }
+        return profiles.contains(profileID)
     }
 
     public var speakers: [Speaker] { lines.map(\.speaker) }

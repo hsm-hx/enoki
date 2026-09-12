@@ -35,12 +35,20 @@ public final class ConversationScheduler {
     public static let encouragementWindow = (startHour: 13, endHour: 18)
 
     /// 優先順位（先頭ほど優先）
-    public static let priority: [DialogueCategory] = [.lunch, .water, .break, .work, .encouragement, .ambient, .pair]
+    public static let priority: [DialogueCategory] = [.lunch, .water, .break, .work, .encouragement,
+                                                      .renofa, .renofaPreMatch, .renofaMatch, .renofaPostMatch,
+                                                      .ambient, .pair]
+
+    /// ambient と同じ周期（40〜90 分）で回るカテゴリ。基準時刻も共有する。
+    public static let ambientPaced: Set<DialogueCategory> = [.ambient, .pair, .renofa,
+                                                             .renofaPreMatch, .renofaMatch, .renofaPostMatch]
 
     // MARK: - 設定
 
     public var intervals = Intervals()
     public var activityMode: ActivityMode
+    /// 現在の見た目プロファイル（nil = 制限しない）。`activityMode` が許すカテゴリをさらに絞り込む。
+    public var profile: AppearanceProfile?
     public var quietMode: QuietMode
     public var workEndHour: Int
     public var calendar: Calendar
@@ -134,12 +142,18 @@ public final class ConversationScheduler {
         let gap = target("global", basis: globalBasis, range: intervals.globalGap)
         guard now >= globalBasis.addingTimeInterval(gap) else { return [] }
 
-        let allowed = activityMode.scheduledCategories
+        let allowed = allowedCategories
         return Self.priority.filter { category in
             allowed.contains(category)
                 && category != history.lastCategory
                 && isDue(category, now: now)
         }
+    }
+
+    /// 仕事中モードと見た目プロファイルが許すカテゴリ
+    public var allowedCategories: Set<DialogueCategory> {
+        let base = activityMode.scheduledCategories
+        return profile?.allowedCategories(base: base) ?? base
     }
 
     /// そのカテゴリの条件が満たされているか
@@ -160,8 +174,8 @@ public final class ConversationScheduler {
             guard hour >= Self.encouragementWindow.startHour, hour < Self.encouragementWindow.endHour else { return false }
             let basis = history.lastShown(of: .encouragement) ?? sessionStart
             return now >= basis.addingTimeInterval(target("encouragement", basis: basis, range: intervals.encouragementEvery))
-        case .ambient, .pair:
-            let basis = latest(history.lastShown(of: .ambient), history.lastShown(of: .pair)) ?? sessionStart
+        case .ambient, .pair, .renofa, .renofaPreMatch, .renofaMatch, .renofaPostMatch:
+            let basis = latest(Self.ambientPaced.map { history.lastShown(of: $0) }) ?? sessionStart
             return now >= basis.addingTimeInterval(target("ambient", basis: basis, range: intervals.ambientEvery))
         }
     }
@@ -188,6 +202,10 @@ public final class ConversationScheduler {
     // MARK: - ヘルパ
 
     private func latest(_ dates: Date?...) -> Date? {
+        dates.compactMap { $0 }.max()
+    }
+
+    private func latest(_ dates: [Date?]) -> Date? {
         dates.compactMap { $0 }.max()
     }
 

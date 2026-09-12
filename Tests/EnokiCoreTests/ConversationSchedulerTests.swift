@@ -28,6 +28,12 @@ final class ConversationSchedulerTests: XCTestCase {
         return scheduler
     }
 
+    /// renofa 系は見た目プロファイル（§12）で絞る前提のカテゴリなので、
+    /// 既存ルールの検証では取り除いてから比べる。
+    private func core(_ categories: [DialogueCategory]) -> [DialogueCategory] {
+        categories.filter { ![.renofa, .renofaPreMatch, .renofaMatch, .renofaPostMatch].contains($0) }
+    }
+
     private func conversation(_ category: DialogueCategory) -> Conversation {
         Conversation(id: "\(category.rawValue)_1", category: category,
                      lines: [DialogueLine(speaker: .saku, text: "…")])
@@ -47,7 +53,7 @@ final class ConversationSchedulerTests: XCTestCase {
         XCTAssertEqual(categories.first, .break)
         XCTAssertFalse(categories.contains(.water))          // 水分は 105 分後
         XCTAssertFalse(categories.contains(.encouragement))  // 励ましは 13 時から
-        XCTAssertEqual(categories, [.break, .ambient, .pair])
+        XCTAssertEqual(core(categories), [.break, .ambient, .pair])
     }
 
     func testWaterAfterItsInterval() {
@@ -119,17 +125,67 @@ final class ConversationSchedulerTests: XCTestCase {
         XCTAssertFalse(scheduler.evaluate(now: date(9, 55)).isEmpty)
     }
 
-    func testRestModeOnlyAmbientAndPair() {
+    /// 仕事中モード OFF は「仕事の声かけ（work / water / break / lunch）以外」。
+    /// 励ましは残る（見た目プロファイル側でさらに絞る）。
+    func testRestModeDropsWorkCategories() {
         let scheduler = makeScheduler(mode: .rest)
-        XCTAssertEqual(scheduler.evaluate(now: date(11, 45)), [.ambient, .pair])
-        XCTAssertEqual(scheduler.evaluate(now: date(13, 10)), [.ambient, .pair])
+        XCTAssertEqual(core(scheduler.evaluate(now: date(11, 45))), [.ambient, .pair])
+        XCTAssertEqual(core(scheduler.evaluate(now: date(13, 10))), [.encouragement, .ambient, .pair])
+        for category in [DialogueCategory.work, .water, .break, .lunch] {
+            XCTAssertFalse(scheduler.allowedCategories.contains(category), "\(category.rawValue) は rest では使わない")
+        }
+    }
+
+    // MARK: - 見た目プロファイル（§12）
+
+    private var casualProfile: AppearanceProfile {
+        AppearanceProfile(id: "casual", displayName: "Casual", spriteSet: "saku_shiori_casual",
+                          dialogueCategories: ["ambient", "pair", "encouragement"],
+                          disabledDialogueCategories: ["work"])
+    }
+
+    private var renofaProfile: AppearanceProfile {
+        AppearanceProfile(id: "renofa", displayName: "Renofa", spriteSet: "saku_shiori_renofa",
+                          dialogueCategories: ["renofa", "ambient", "pair", "encouragement"],
+                          disabledDialogueCategories: ["work"],
+                          special: true)
+    }
+
+    func testCasualProfileDropsWorkCategoriesEvenInWorkMode() {
+        let scheduler = makeScheduler()          // 仕事中モードは ON のまま
+        scheduler.profile = casualProfile
+        XCTAssertEqual(scheduler.allowedCategories, [.ambient, .pair, .encouragement])
+        // 9:55 は本来 break が出るタイミングだが、casual では出ない
+        XCTAssertEqual(scheduler.evaluate(now: date(9, 55)), [.ambient, .pair])
+        for category in [DialogueCategory.work, .water, .break, .lunch] {
+            XCTAssertFalse(scheduler.evaluate(now: date(13, 10)).contains(category))
+        }
+        XCTAssertEqual(scheduler.evaluate(now: date(13, 10)), [.encouragement, .ambient, .pair])
+    }
+
+    func testRenofaProfileAllowsRenofaCategory() {
+        let scheduler = makeScheduler()
+        scheduler.profile = renofaProfile
+        XCTAssertEqual(scheduler.allowedCategories, [.renofa, .ambient, .pair, .encouragement])
+        // renofa は ambient と同じ周期・ambient の直前の優先順位
+        XCTAssertEqual(scheduler.evaluate(now: date(9, 55)), [.renofa, .ambient, .pair])
+
+        // 直前に renofa を出したら、次はほかのカテゴリへ回る
+        scheduler.record(conversation(.renofa), at: date(9, 55))
+        XCTAssertEqual(scheduler.evaluate(now: date(10, 40)), [.ambient, .pair])
+    }
+
+    func testProfileWithoutRestrictionKeepsActivityMode() {
+        let scheduler = makeScheduler()
+        scheduler.profile = AppearanceProfile(id: "default", displayName: "Default")
+        XCTAssertEqual(scheduler.allowedCategories, Set(DialogueCategory.allCases))
     }
 
     func testAmbientAndPairAlternate() {
         let scheduler = makeScheduler(mode: .rest)
         scheduler.record(conversation(.ambient), at: date(9, 40))
         XCTAssertEqual(scheduler.evaluate(now: date(10, 0)), [])          // 40 分の周期に届かない
-        XCTAssertEqual(scheduler.evaluate(now: date(10, 20)), [.pair])    // 直前の ambient は避ける
+        XCTAssertEqual(core(scheduler.evaluate(now: date(10, 20))), [.pair])   // 直前の ambient は避ける
     }
 
     // MARK: - 履歴

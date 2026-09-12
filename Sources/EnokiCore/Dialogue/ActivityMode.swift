@@ -24,7 +24,9 @@ public enum ActivityMode: String, CaseIterable, Codable, Sendable {
             // ambient / pair も混ぜるが、ConversationScheduler の優先順位で最後に回るため頻度は低い。
             return Set(DialogueCategory.allCases)
         case .rest:
-            return [.ambient, .pair]
+            // 仕事の声かけ（work / water / break / lunch）以外は許す。
+            // 見た目プロファイル側でさらに絞り込む（例: casual は encouragement を許可、work を落とす）。
+            return Set(DialogueCategory.allCases).subtracting([.work, .water, .break, .lunch])
         }
     }
 }

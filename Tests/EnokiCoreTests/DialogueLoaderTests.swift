@@ -16,15 +16,40 @@ final class DialogueLoaderTests: XCTestCase {
         let result = try DialogueLoader.load(url: bundledDialogueURL)
         XCTAssertEqual(result.issues, [], "同梱の台詞ファイルに壊れた会話があります")
         XCTAssertEqual(result.set.schemaVersion, 1)
-        XCTAssertEqual(result.set.conversations.count, 42)
+        // 42（共通）+ 4（casual 専用）+ 4（renofa 専用）
+        XCTAssertEqual(result.set.conversations.count, 50)
     }
 
-    func testBundledDialogueHasSixConversationsPerCategory() throws {
+    func testBundledDialogueHasSixCommonConversationsPerCategory() throws {
         let result = try DialogueLoader.load(url: bundledDialogueURL)
-        XCTAssertEqual(DialogueCategory.allCases.count, 7)
-        for category in DialogueCategory.allCases {
-            XCTAssertEqual(result.set.conversations(in: category).count, 6, "\(category.rawValue) の件数")
+        XCTAssertEqual(DialogueCategory.allCases.count, 11)
+
+        // プロファイル共通（profiles 指定なし）の台詞は、元の 7 カテゴリに 6 件ずつ
+        let common = result.set.conversations.filter { $0.profiles == nil }
+        XCTAssertEqual(common.count, 42)
+        for category in [DialogueCategory.work, .water, .break, .lunch, .encouragement, .ambient, .pair] {
+            XCTAssertEqual(common.filter { $0.category == category }.count, 6, "\(category.rawValue) の件数")
         }
+    }
+
+    func testBundledDialogueHasProfileSpecificConversations() throws {
+        let result = try DialogueLoader.load(url: bundledDialogueURL)
+
+        let casual = result.set.conversations.filter { $0.profiles == ["casual"] }
+        XCTAssertEqual(casual.count, 4)
+        XCTAssertTrue(casual.allSatisfy { [.ambient, .pair].contains($0.category) })
+        XCTAssertTrue(casual.allSatisfy { $0.matches(profileID: "casual") })
+        XCTAssertFalse(casual.contains { $0.matches(profileID: AppearanceProfile.ID.default) })
+
+        let renofa = result.set.conversations.filter { $0.profiles == ["renofa"] }
+        XCTAssertEqual(renofa.count, 4)
+        XCTAssertTrue(renofa.allSatisfy { $0.category == .renofa })
+        XCTAssertTrue(renofa.allSatisfy { $0.matches(profileID: "renofa") })
+
+        // profiles の無い会話はどのプロファイルでも使える
+        let common = try XCTUnwrap(result.set.conversation(id: "ambient_001"))
+        XCTAssertNil(common.profiles)
+        XCTAssertTrue(common.matches(profileID: "renofa"))
     }
 
     func testBundledDialogueContentIsSane() throws {

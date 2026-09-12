@@ -23,6 +23,8 @@ let package = Package(
                 .copy("Resources/DefaultSkin"),
                 .copy("Resources/AppIcon"),
                 .copy("Resources/DialogueText"),
+                .copy("Resources/Profiles"),
+                .copy("Resources/Characters"),
             ]
         ),
         .testTarget(

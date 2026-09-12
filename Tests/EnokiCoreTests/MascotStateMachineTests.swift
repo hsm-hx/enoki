@@ -225,4 +225,82 @@ final class MascotStateMachineTests: XCTestCase {
         XCTAssertTrue(machine.state.isIdle)
         XCTAssertTrue(effects.contains(.setIdlePolling(interval: nil)))
     }
+
+    // MARK: - 見た目プロファイルによるスキン差し替え（skinSwapped）
+
+    /// 既定スキンが持っているアニメーション名
+    private var codexAnimations: Set<String> {
+        ["idle", "running-right", "running-left", "waving", "jumping", "failed", "waiting", "running", "review", "sleep"]
+    }
+
+    func testSkinSwapKeepsIdleAnimationWhenNameExists() {
+        let machine = makeMachine()
+        machine.handle(.start, now: 0)
+        machine.handle(.idleSwitchFired, now: 10)
+        XCTAssertEqual(machine.state, .idle(animation: "review"))
+
+        let effects = machine.handle(.skinSwapped(availableAnimations: codexAnimations), now: 20)
+        XCTAssertEqual(machine.state, .idle(animation: "review"), "同じ名前があれば状態を続ける")
+        XCTAssertEqual(playedAnimations(effects), ["review"])
+        XCTAssertTrue(effects.contains(.scheduleIdleSwitch(after: 30)))
+    }
+
+    func testSkinSwapFallsBackToIdleWhenNameMissing() {
+        let machine = makeMachine()
+        machine.handle(.start, now: 0)
+        XCTAssertEqual(machine.state, .idle(animation: "idle"))
+
+        // 新しいスキンは "nap" しか持っていない
+        var mapping = CodexPetDefaults.stateMapping
+        mapping.idle = ["nap"]
+        mapping.sleepIntro = nil
+        mapping.sleepLoop = "nap"
+        mapping.drag = "nap"
+        machine.updateMapping(mapping)
+
+        let effects = machine.handle(.skinSwapped(availableAnimations: ["nap"]), now: 20)
+        XCTAssertEqual(machine.state, .idle(animation: "nap"))
+        XCTAssertEqual(playedAnimations(effects), ["nap"])
+    }
+
+    func testSkinSwapWhileSleepingReplaysLoopWithoutIntro() {
+        let machine = makeMachine()
+        machine.handle(.start, now: 0)
+        machine.handle(.idleSecondsSampled(300), now: 10)
+        XCTAssertEqual(machine.state, .sleeping(phase: .intro))
+
+        let effects = machine.handle(.skinSwapped(availableAnimations: codexAnimations), now: 20)
+        XCTAssertEqual(machine.state, .sleeping(phase: .loop), "intro は繰り返さない")
+        XCTAssertEqual(playedAnimations(effects), ["sleep"])
+    }
+
+    func testSkinSwapWhileDraggingKeepsDragging() {
+        let machine = makeMachine()
+        machine.handle(.start, now: 0)
+        machine.handle(.dragBegan, now: 1)
+        XCTAssertTrue(machine.state.isDragging)
+
+        let effects = machine.handle(.skinSwapped(availableAnimations: codexAnimations), now: 2)
+        XCTAssertTrue(machine.state.isDragging)
+        XCTAssertEqual(playedAnimations(effects), ["running-right"])
+    }
+
+    func testSkinSwapWhileReactingReturnsToIdle() {
+        let machine = makeMachine()
+        machine.handle(.start, now: 0)
+        machine.handle(.clicked, now: 1)
+        XCTAssertTrue(machine.state.isReacting)
+
+        let effects = machine.handle(.skinSwapped(availableAnimations: codexAnimations), now: 2)
+        XCTAssertEqual(machine.state, .idle(animation: "idle"))
+        XCTAssertEqual(playedAnimations(effects), ["idle"])
+    }
+
+    func testSkinSwapWhileHiddenDoesNothing() {
+        let machine = makeMachine()
+        machine.handle(.start, now: 0)
+        machine.handle(.setVisible(false), now: 1)
+        XCTAssertEqual(machine.handle(.skinSwapped(availableAnimations: codexAnimations), now: 2), [])
+        XCTAssertTrue(machine.state.isHidden)
+    }
 }
