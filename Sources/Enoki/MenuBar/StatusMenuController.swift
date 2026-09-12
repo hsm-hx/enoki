@@ -41,6 +41,9 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
 
         add(title: "朔と栞を表示", action: #selector(toggleVisible), state: settings.isVisible)
+        add(title: "ちょっと話して", action: #selector(speakNow), state: false)
+        menu.addItem(conversationMenuItem())
+        add(title: "仕事中モード", action: #selector(toggleActivityMode), state: settings.activityMode == .work)
         menu.addItem(.separator())
 
         add(title: "常に最前面", action: #selector(toggleAlwaysOnTop), state: settings.alwaysOnTop)
@@ -120,6 +123,45 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         return item
     }
 
+    /// 会話（静かにする）サブメニュー。現在の状態をラジオで示す。
+    private func conversationMenuItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "会話", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        let now = Date()
+        let current = settings.quietMode
+
+        let header = NSMenuItem(title: "現在: \(current.localizedName(at: now))", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        submenu.addItem(header)
+        submenu.addItem(.separator())
+
+        let choices: [(title: String, tag: String)] = [
+            ("通常", "normal"),
+            ("1時間静かにする", "hour"),
+            ("今日の仕事終了まで静かにする", "workday"),
+            ("会話OFF", "off"),
+        ]
+        for choice in choices {
+            let sub = NSMenuItem(title: choice.title, action: #selector(setQuietMode(_:)), keyEquivalent: "")
+            sub.target = self
+            sub.representedObject = choice.tag
+            sub.state = (Self.quietTag(for: current) == choice.tag) ? .on : .off
+            submenu.addItem(sub)
+        }
+
+        item.submenu = submenu
+        return item
+    }
+
+    private static func quietTag(for mode: QuietMode) -> String {
+        switch mode {
+        case .normal:            return "normal"
+        case .until:             return "hour"
+        case .untilEndOfWorkDay: return "workday"
+        case .off:               return "off"
+        }
+    }
+
     private func skinMenuItem() -> NSMenuItem {
         let item = NSMenuItem(title: "スキン", action: nil, keyEquivalent: "")
         let submenu = NSMenu()
@@ -174,6 +216,28 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     @objc private func toggleVisible() { settings.isVisible.toggle() }
     @objc private func toggleAlwaysOnTop() { settings.alwaysOnTop.toggle() }
     @objc private func toggleClickThrough() { settings.clickThrough.toggle() }
+
+    @objc private func speakNow() { controller.speakNow() }
+
+    @objc private func toggleActivityMode() {
+        settings.activityMode = (settings.activityMode == .work) ? .rest : .work
+    }
+
+    @objc private func setQuietMode(_ sender: NSMenuItem) {
+        guard let tag = sender.representedObject as? String else { return }
+        let now = Date()
+        switch tag {
+        case "hour":
+            settings.quietMode = .until(now.addingTimeInterval(60 * 60))
+        case "workday":
+            settings.quietMode = QuietMode.endOfWorkDay(from: now, workEndHour: settings.workEndHour)
+        case "off":
+            settings.quietMode = .off
+        default:
+            settings.quietMode = .normal
+        }
+        Self.logger.info("会話モード: \(self.settings.quietMode.rawValue, privacy: .public)")
+    }
 
     @objc private func setScale(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? Double else { return }
@@ -243,6 +307,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
         スキン: \(controller.skinDisplayName)
         読み込み元: \(abbreviate(controller.skinDirectoryURL?.path ?? "-"))
+        台詞: \(abbreviate(controller.dialogueSourceURL?.path ?? "(読み込みなし)"))
 
         ネットワーク通信・テレメトリは一切行いません。
         アクセシビリティ／画面収録／入力監視の権限も不要です。

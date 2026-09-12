@@ -28,6 +28,11 @@ public final class AppSettings {
         case windowOriginX
         case windowOriginY
         case hasSavedWindowOrigin
+        case activityMode
+        case quietModeRaw
+        case quietUntil
+        case workEndHour
+        case conversationHistoryData
     }
 
     /// userInfo["key"] に `Key.rawValue` が入る
@@ -52,6 +57,8 @@ public final class AppSettings {
             Key.interpolation.rawValue: InterpolationMode.linear.rawValue,
             Key.sleepAfterSeconds.rawValue: 300,
             Key.hasSavedWindowOrigin.rawValue: false,
+            Key.activityMode.rawValue: ActivityMode.work.rawValue,
+            Key.workEndHour.rawValue: QuietMode.defaultWorkEndHour,
         ])
     }
 
@@ -123,6 +130,55 @@ public final class AppSettings {
                 defaults.set(false, forKey: Key.hasSavedWindowOrigin.rawValue)
             }
             post(.hasSavedWindowOrigin)
+        }
+    }
+
+    // MARK: - 会話・声かけ
+
+    /// 仕事中モード（既定 work）
+    public var activityMode: ActivityMode {
+        get { ActivityMode(rawValue: defaults.string(forKey: Key.activityMode.rawValue) ?? "") ?? .work }
+        set { set(newValue.rawValue, for: .activityMode) }
+    }
+
+    /// 「静かにして」の状態。解除時刻は `quietUntil` に保存する。
+    public var quietMode: QuietMode {
+        get {
+            QuietMode(rawValue: defaults.string(forKey: Key.quietModeRaw.rawValue),
+                      until: storedQuietUntil)
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: Key.quietModeRaw.rawValue)
+            if let expiry = newValue.expiry {
+                defaults.set(expiry.timeIntervalSince1970, forKey: Key.quietUntil.rawValue)
+            } else {
+                defaults.removeObject(forKey: Key.quietUntil.rawValue)
+            }
+            post(.quietModeRaw)
+        }
+    }
+
+    private var storedQuietUntil: Date? {
+        let seconds = defaults.double(forKey: Key.quietUntil.rawValue)
+        return seconds > 0 ? Date(timeIntervalSince1970: seconds) : nil
+    }
+
+    /// 仕事を終える時刻（時）。「今日の仕事終了まで静かにする」の基準。0〜23 にクランプ。
+    public var workEndHour: Int {
+        get { min(max(defaults.integer(forKey: Key.workEndHour.rawValue), 0), 23) }
+        set { set(min(max(newValue, 0), 23), for: .workEndHour) }
+    }
+
+    /// 会話履歴（JSON）
+    public var conversationHistoryData: Data? {
+        get { defaults.data(forKey: Key.conversationHistoryData.rawValue) }
+        set {
+            if let newValue {
+                defaults.set(newValue, forKey: Key.conversationHistoryData.rawValue)
+            } else {
+                defaults.removeObject(forKey: Key.conversationHistoryData.rawValue)
+            }
+            post(.conversationHistoryData)
         }
     }
 

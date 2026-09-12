@@ -34,11 +34,20 @@ enum BundledResources {
         let url = bundle.bundleURL.appendingPathComponent("DefaultSkin", isDirectory: true)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
+
+    /// 内蔵の台詞ファイル
+    static var dialogueURL: URL? {
+        guard let bundle = resourceBundle else { return nil }
+        let url = bundle.bundleURL
+            .appendingPathComponent("DialogueText", isDirectory: true)
+            .appendingPathComponent(DialogueLoader.fileName)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
 }
 
 /// ウィンドウ・プレイヤー・状態機械・設定を結線する中心クラス。
 @MainActor
-final class MascotController: NSObject, MascotViewDelegate {
+final class MascotController: NSObject, MascotViewDelegate, ConversationHost {
 
     private static let logger = Logger(subsystem: "com.enoki.mascot", category: "controller")
 
@@ -52,6 +61,8 @@ final class MascotController: NSObject, MascotViewDelegate {
 
     private(set) var skin: Skin?
     private(set) var skinSource: SkinSource = .bundled
+
+    private var conversation: ConversationCoordinator?
 
     private var idleSwitchTimer: DispatchSourceTimer?
     /// 省電力による一時停止（スクリーンスリープ・遮蔽など）
@@ -81,10 +92,14 @@ final class MascotController: NSObject, MascotViewDelegate {
             self.apply(machine.handle(.idleSecondsSampled(seconds), now: self.now))
         }
 
+        let conversation = ConversationCoordinator(settings: settings, host: self)
+        self.conversation = conversation
+
         registerObservers()
         Self.logger.info("内蔵スキン: \(BundledResources.defaultSkinURL?.path ?? "見つかりません", privacy: .public)")
         apply(machine.handle(.start, now: now))
         updateWindowVisibility()
+        conversation.start(skinDirectory: skin.sourceURL)
         Self.logger.info("スキン「\(skin.displayName, privacy: .public)」を \(self.skinSource.rawValue, privacy: .public) から読み込みました")
         Self.logger.info("アニメーション: \(Self.describeFrames(of: skin), privacy: .public)")
     }
@@ -95,6 +110,7 @@ final class MascotController: NSObject, MascotViewDelegate {
     }
 
     func shutdown() {
+        conversation?.stop()
         cancelIdleSwitchTimer()
         idleMonitor.stop()
         player.stop()
@@ -134,6 +150,7 @@ final class MascotController: NSObject, MascotViewDelegate {
         guard loadSkin(initial: false), let skin, let machine else { return }
         machine.updateMapping(skin.mapping)
         apply(machine.handle(.skinReloaded, now: now))
+        conversation?.reloadDialogue(skinDirectory: skin.sourceURL)
         Self.logger.info("スキンを再読み込みしました: \(skin.displayName, privacy: .public)")
     }
 
@@ -323,6 +340,7 @@ final class MascotController: NSObject, MascotViewDelegate {
             if let machine {
                 apply(machine.handle(.setVisible(settings.isVisible), now: now))
             }
+            conversation?.visibilityChanged()
         case .alwaysOnTop:
             window?.setAlwaysOnTop(settings.alwaysOnTop)
         case .clickThrough:
@@ -335,7 +353,10 @@ final class MascotController: NSObject, MascotViewDelegate {
             if let machine {
                 apply(machine.updateSleepAfterSeconds(settings.sleepAfterSeconds, now: now))
             }
-        case .skinDirectory, .windowOriginX, .windowOriginY, .hasSavedWindowOrigin:
+        case .activityMode:
+            conversation?.activityModeChanged()
+        case .skinDirectory, .windowOriginX, .windowOriginY, .hasSavedWindowOrigin,
+             .quietModeRaw, .quietUntil, .workEndHour, .conversationHistoryData:
             break
         }
     }
@@ -419,6 +440,40 @@ final class MascotController: NSObject, MascotViewDelegate {
         guard settings.isVisible else { return }
         player.resume()
     }
+
+    // MARK: - ConversationHost（会話・声かけ）
+
+    var conversationParentWindow: NSWindow? { window }
+
+    /// ドラッグ中・リアクション中・省電力で止めている間は会話を差し込まない
+    var isBusyForConversation: Bool {
+        guard let machine else { return true }
+        return machine.state.isDragging || machine.state.isReacting || isSuspended
+    }
+
+    /// 無操作が続いてスリープ状態 = 離席中とみなす
+    var isUserAwayForConversation: Bool {
+        machine?.state.isSleeping ?? false
+    }
+
+    var isMascotHiddenForConversation: Bool {
+        guard settings.isVisible else { return true }
+        return machine?.state.isHidden ?? true
+    }
+
+    /// 台詞に紐づいた reaction アニメーション（スキンに無ければ何もしない）
+    func playConversationReaction(named name: String) {
+        guard let machine, let skin, skin.animation(named: name) != nil else { return }
+        apply(machine.handle(.reactionRequested(name: name), now: now))
+    }
+
+    /// メニューの「ちょっと話して」
+    func speakNow() {
+        conversation?.speakNow()
+    }
+
+    /// 読み込んでいる台詞ファイル（About 表示用）
+    var dialogueSourceURL: URL? { conversation?.dialogueSourceURL }
 
     // MARK: - ヘルパ
 

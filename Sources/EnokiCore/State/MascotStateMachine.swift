@@ -13,6 +13,8 @@ public final class MascotStateMachine {
         case dragBegan
         case dragEnded
         case clicked
+        /// 会話の行に紐づいた reaction アニメーションの再生要求（idle / sleeping のときだけ効く）
+        case reactionRequested(name: String)
         case animationFinished(token: Int)         // 非ループ再生の完了
         case setVisible(Bool)
         case skinReloaded
@@ -118,6 +120,15 @@ public final class MascotStateMachine {
         case .clicked:
             return handleClick(now: now)
 
+        case .reactionRequested(let name):
+            guard isVisible, !name.isEmpty else { return [] }
+            switch state {
+            case .idle, .sleeping:
+                return enterReacting(named: name)
+            case .reacting, .dragging, .hidden:
+                return []
+            }
+
         case .animationFinished(let token):
             guard token == currentToken else { return [] }   // 古い再生の完了は無視
             switch state {
@@ -214,7 +225,11 @@ public final class MascotStateMachine {
 
     private func enterReacting(now: TimeInterval) -> [Effect] {
         guard !mapping.reaction.isEmpty else { return enterIdle(now: now) }
-        let name = mapping.reaction[clampedIndex(mapping.reaction.count)]
+        return enterReacting(named: mapping.reaction[clampedIndex(mapping.reaction.count)])
+    }
+
+    /// アニメーション名を指定してリアクションへ入る
+    private func enterReacting(named name: String) -> [Effect] {
         state = .reacting(animation: name)
         currentToken += 1
         var effects: [Effect] = [.cancelIdleSwitch,

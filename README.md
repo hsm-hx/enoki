@@ -32,7 +32,7 @@ Dock には出ません（`LSUIElement`）。
 |---|---|---|
 | `EnokiCore` | Foundation / CoreGraphics / ImageIO | AppKit に依存しない純ロジック。スキンの読み込み、状態遷移、位置計算、設定。**テスト対象はここ。** |
 | `Enoki` | AppKit + `EnokiCore` | 実行ファイル。ウィンドウ・描画・タイマー・メニューバー・システム連携。 |
-| `EnokiCoreTests` | XCTest + `EnokiCore` | 43 件のユニットテスト。 |
+| `EnokiCoreTests` | XCTest + `EnokiCore` | 74 件のユニットテスト。 |
 
 ### ファイル
 
@@ -48,6 +48,13 @@ Sources/EnokiCore/
   State/MascotStateMachine.swift 状態遷移（純ロジック・タイマー非依存）
   Settings/AppSettings.swift     UserDefaults ラッパと変更通知
   Geometry/WindowPlacement.swift 位置のクランプ・既定位置（純関数）
+  Dialogue/DialogueModels.swift  Speaker / DialogueCategory / DialogueLine / Conversation / DialogueSet
+  Dialogue/DialogueLoader.swift  dialogue.json のローダ（壊れた会話だけ捨てる）
+  Dialogue/ActivityMode.swift    仕事中モード（work / rest）
+  Dialogue/QuietMode.swift       「静かにして」の状態
+  Dialogue/ConversationHistory.swift  会話履歴（UserDefaults へ JSON 保存）
+  Dialogue/ConversationProvider.swift ConversationContext と会話の選択（差し替え可能）
+  Dialogue/ConversationScheduler.swift いつ・どのカテゴリを話すか（純ロジック）
 
 Sources/Enoki/
   main.swift                     NSApplication のセットアップ
@@ -75,7 +82,14 @@ Sources/Enoki/
                                                ▼
                         SpritePlayer ──(コマ)──► MascotView ──► CALayer.contentsRect
                                                             └─► MascotWindow (NSPanel)
+
+  時計（60 秒 tick）──► ConversationScheduler ──► ConversationProvider ──► ConversationPresenter
+                                                                              │
+                                              SpeechBubbleWindow（MascotWindow の子ウィンドウ）◄┘
 ```
+
+会話・声かけは **§11** を参照してください。時刻と自分の状態しか見ません（入力内容・画面・
+ファイル・アクティブアプリは読みません）。
 
 `MascotStateMachine` は `Date` もタイマーも触りません。`handle(_ event:, now:) -> [Effect]` という
 純粋な関数として書かれていて、時刻・乱数は外から注入します。実際のタイマーは
@@ -95,6 +109,8 @@ Sources/Enoki/
 | `CGContext`（`alphaOnly`） | ヒットテスト用アルファマスクの生成 | 不要 |
 | `CGEventSource.secondsSinceLastEventType` | 無操作時間の取得（**入力内容は取得しない**） | 不要 |
 | `DispatchSourceTimer` | コマ送り・idle 切替・無操作ポーリング | 不要 |
+| `NSWindow.addChildWindow(_:ordered:)` | 吹き出しをマスコット窓に追従させる | 不要 |
+| `NSBezierPath` / `NSTextField` | 吹き出しの描画と文字組み | 不要 |
 | `NSStatusItem` / `NSMenu` / `NSMenuDelegate` | メニューバー | 不要 |
 | `NSImage(systemSymbolName:)` | メニューバーアイコン（SF Symbols） | 不要 |
 | `NSOpenPanel` | スキンフォルダの選択 | 不要（ユーザーが選んだ範囲のみ） |
@@ -148,8 +164,8 @@ stateDiagram-v2
     idle --> sleeping_intro: 無操作 ≥ スリープ時間
     sleeping_intro --> sleeping_loop: intro 再生完了
     sleeping_loop --> idle: 入力が戻った
-    idle --> reacting: クリック
-    sleeping_loop --> reacting: クリック（起こされた）
+    idle --> reacting: クリック / 台詞の reaction
+    sleeping_loop --> reacting: クリック（起こされた）/ 台詞の reaction
     reacting --> idle: リアクション再生完了
     idle --> dragging: ドラッグ開始
     sleeping_loop --> dragging: ドラッグ開始
@@ -169,6 +185,8 @@ stateDiagram-v2
 | `hidden` | なし | タイマー全停止 |
 
 - リアクション中のクリックは無視します（デバウンス）。
+- 会話の行に `reaction` が書かれていると、`.reactionRequested(name:)` で同じ経路を通って
+  そのアニメーションを 1 回再生します（idle / sleeping のときだけ。§11.9）。
 - 無操作時間のポーリングは通常 5 秒、スリープ中は 1 秒。「スリープしない」設定では停止します。
 
 ---
@@ -298,6 +316,11 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
 
 ```
 ✓ 朔と栞を表示
+  ちょっと話して
+  会話                ▸ 現在: 通常
+                        ─
+                        ✓通常 / 1時間静かにする / 今日の仕事終了まで静かにする / 会話OFF
+✓ 仕事中モード
 ──────────
 ✓ 常に最前面
   クリック透過（ドラッグ・クリック不可）
@@ -328,6 +351,10 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
 - **ドラッグ**: マスコットを掴んで移動。離すとマウスのある画面に収まるようにクランプして保存します。
 - **クリック**: リアクション（手を振る／跳ねる）。スリープ中なら起こしてからリアクションします。
 - **表示倍率の変更**: 足元（下端中央）を固定したままサイズが変わります。
+- **ちょっと話して**: その場で 1 つ会話を出します（`ambient` / `pair` から。quiet 中でも出ます）。
+- **会話**: 静かにする期間を選びます。`until` が過ぎたら自動的に「通常」へ戻ります（§11.7）。
+- **仕事中モード**: OFF にすると `ambient` / `pair` だけになります。ON にした時刻から
+  休憩・水分の周期を数え直します。
 
 ### 設定キー（UserDefaults）
 
@@ -341,6 +368,11 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
 | `sleepAfterSeconds` | Int | `300`（`0` = スリープしない） |
 | `skinDirectory` | String? | なし |
 | `windowOriginX` / `windowOriginY` / `hasSavedWindowOrigin` | Double / Bool | なし |
+| `activityMode` | String | `"work"`（`work` \| `rest`） |
+| `quietModeRaw` | String | `"normal"`（`normal` \| `until` \| `untilEndOfWorkDay` \| `off`） |
+| `quietUntil` | Double | なし（`quietModeRaw` が `until` / `untilEndOfWorkDay` のときの解除時刻・UNIX 秒） |
+| `workEndHour` | Int | `18`（0〜23） |
+| `conversationHistoryData` | Data | なし（会話履歴の JSON） |
 
 ```bash
 # 設定を全部消したいとき
@@ -355,6 +387,8 @@ defaults delete com.enoki.mascot
   いずれも不要です。無操作時間は `CGEventSource.secondsSinceLastEventType` で
   「最後の入力からの秒数」だけを読み、キーの内容は一切取得しません。
 - ネットワークアクセスはコード上ゼロです（`URLSession` も `Network.framework` も import していません）。
+- **会話・声かけ（§11）も監視はしません。** 見ているのは時刻・自分の状態・設定だけで、
+  台詞はアプリに同梱された JSON から選んでいます。生成 AI も外部通信も使っていません。
 - サンドボックスは有効にしていません（`~/.codex/pets` を直接読むため）。
 - 署名は既定で**アドホック署名**（`codesign --sign -`）です。自分の Mac でビルドしたものは
   Gatekeeper にブロックされずそのまま開けます。他人に配る場合は Developer ID 署名と公証が必要です。
@@ -415,16 +449,240 @@ make clean
 - **`sleep` の判定は「最後の入力からの秒数」だけ**です。動画視聴中など、入力が無くても
   作業している状況ではスリープします。
 - アイコン以外のローカライズはしていません（日本語固定）。
+- **会話の台詞は同梱 JSON からの選択だけ**です（生成はしません）。42 会話しかないので、
+  長く使うと同じ台詞が回ってきます。差し替え方は §11.6。
+- **声かけは完全に時間ベース**です。実際に働いているか、もう休憩したかは分かりません
+  （入力・画面・アプリを見ないため）。離席（マスコットがスリープ状態）のときだけ黙ります。
+- **吹き出しは 1 つだけ**です。2 人が同時にしゃべることはなく、必ず 1 行ずつ出ます。
+- **昼食・励ましの時間帯（11:30〜14:00 / 13:00〜18:00）は固定**で、設定から変えられません
+  （`ConversationScheduler` の定数）。`workEndHour` だけが設定（既定 18 時）です。
+- **台詞に書いた `reaction` は、スキンに同名のアニメーションがあるときだけ**再生されます。
+  同梱の台詞には `reaction` が入っていないので、既定では使われません。
 
 ---
 
-## 11. 将来の拡張ポイント
+## 11. 会話・声かけ
+
+仕事中のユーザー（ひいらぎ）に、朔と栞が時々声をかけます。水分・休憩・昼食・仕事復帰をうながし、
+2 人だけの短い会話も流れます。**台詞は Swift に直書きせず、JSON（`dialogue.json`）から読み込みます。**
+
+> **プライバシー: これは監視機能ではありません。**
+> キー入力・画面・ファイル・アクティブなアプリ・クリップボードは一切読みません。
+> ネットワーク通信も Analytics もありません。声かけは **時刻と自分の状態（表示中／スリープ中／ドラッグ中）
+> だけを見た時間ベースの演出** です。「無操作秒数」は既存のスリープ判定と同じ
+> `CGEventSource.secondsSinceLastEventType`（秒数だけ）を使っています。
+
+### 11.1 構造
+
+```
+Sources/EnokiCore/Dialogue/        AppKit 非依存（テスト対象）
+  DialogueModels.swift       Speaker / DialogueCategory / DialogueLine / Conversation / DialogueSet
+  DialogueLoader.swift       dialogue.json のローダ（壊れた会話だけ捨てる）
+  ActivityMode.swift         work / rest と、モードごとに使ってよいカテゴリ
+  QuietMode.swift            normal / until / untilEndOfWorkDay / off
+  ConversationHistory.swift  id・カテゴリごとの最終再生時刻（UserDefaults に JSON で保存）
+  ConversationProvider.swift ConversationContext / ConversationProvider / LocalDialogueProvider
+  ConversationScheduler.swift 「いま話してよいカテゴリ」を優先順に返す純ロジック
+
+Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
+  SpeechBubbleWindow.swift   吹き出しの NSPanel（マスコット窓の子ウィンドウ）
+  SpeechBubbleView.swift     角丸 + しっぽの描画、発言者名とテキスト
+  ConversationPresenter.swift 会話を 1 行ずつ出す（表示時間・行間・キャンセル）
+  ConversationCoordinator.swift 60 秒ごとの tick と全体の結線
+```
+
+```
+                60 秒ごとの tick
+                      │
+  AppSettings ──►ConversationCoordinator──► ConversationScheduler.evaluate(now:)
+  （モード・quiet） │        ▲                    │ [DialogueCategory]（優先順）
+                    │        │                    ▼
+  MascotController ─┘        └──── LocalDialogueProvider.nextConversation(context:)
+  （ドラッグ中/スリープ中/非表示）              │ Conversation?
+                                                ▼
+                          ConversationPresenter ──► SpeechBubbleWindow（子ウィンドウ）
+                                                └──► ConversationHistory ──► UserDefaults
+```
+
+吹き出しはマスコット窓の **子ウィンドウ**（`addChildWindow(_:ordered: .above)`）なので、
+ドラッグすると一緒に動きます。`ignoresMouseEvents = true` なので、
+クリック・ドラッグの邪魔はしません。
+
+### 11.2 `dialogue.json` の仕様
+
+解決順（先に見つかったほうを使います）:
+
+1. **使用中スキンフォルダの `dialogue.json`**（例: `~/.codex/pets/sakushio_pet/dialogue.json`）
+2. アプリ内蔵の `Resources/DialogueText/dialogue.json`（42 会話）
+
+読み込みに失敗した場合は**会話機能だけ**が無効になります（マスコットは普通に動きます）。
+
+```json
+{
+  "schema_version": 1,
+  "character_ids": ["saku", "shiori"],
+  "dialogues": [
+    {
+      "id": "water_001",
+      "category": "water",
+      "cooldown": 7200,
+      "lines": [
+        {"speaker": "shiori", "text": "ひいらぎ、お水飲みましたか？"},
+        {"speaker": "saku", "text": "……ぼくも飲む", "reaction": "waving"}
+      ]
+    }
+  ]
+}
+```
+
+| キー | 型 | 既定 | 意味 |
+|---|---|---|---|
+| `schema_version` | Int | `1` | 形式のバージョン。未知の値でも読み込みます。 |
+| `character_ids` | [String] | — | 参考情報。ローダは見ていません。 |
+| `dialogues[].id` | String | **必須** | 会話 ID。重複するとその会話を捨てます。 |
+| `dialogues[].category` | String | **必須** | `work` / `water` / `break` / `lunch` / `encouragement` / `ambient` / `pair`。 |
+| `dialogues[].cooldown` | 秒 | `3600` | 同じ会話を再び選べるようになるまでの秒数。 |
+| `dialogues[].lines[].speaker` | String | **必須** | `saku`（朔・左） / `shiori`（栞・右）。 |
+| `dialogues[].lines[].text` | String | **必須** | 1 発言。目安 30 文字程度（最大 3 行、超えると末尾省略）。 |
+| `dialogues[].lines[].reaction` | String? | `null` | その発言に合わせて再生するアニメーション名（スキンに無ければ無視）。 |
+
+- **未知のキーは無視します。**
+- `lines` が空 / `speaker` が不明 / `category` が不明 / `id` が重複 のときは
+  **その会話だけを捨てて** 残りを読み込みます（ファイル全体は失敗させません）。
+  捨てた理由は `os.Logger`（category `conversation`）に出ます。
+- 1 会話は 4 発言までを目安にしてください（長いと表示が間延びします）。
+
+### 11.3 声かけのルール（`ConversationScheduler`）
+
+`ConversationCoordinator` が 60 秒ごとに `evaluate(now:)` を呼び、返ってきた
+カテゴリ候補（**優先順**）を `allowedCategories` として Provider に渡します。空なら黙ります。
+
+優先順: **lunch > water > break > work > encouragement > ambient / pair**
+
+| ルール | 条件 |
+|---|---|
+| 全体の最低間隔 | 前回の会話から **20 分 + 0〜15 分**（周期ごとに 1 回だけ乱数を引き、基準が動くまで同じ値を使う） |
+| `break`（休憩） | セッション開始（起動 or 仕事中モード ON）または前回の break から **50〜60 分** |
+| `water`（水分） | 前回の water（無ければセッション開始）から **120 分 ±15 分** |
+| `lunch`（昼食） | **11:30〜14:00** の窓の中。1 日 1 回。目標時刻（**12:00 ±20 分**）以降。 |
+| `encouragement` | **13:00〜18:00**。前回から **90 分 ±20 分** |
+| `work`（仕事に戻る） | break か lunch を出してから **10〜15 分後に 1 回だけ** |
+| `ambient` / `pair` | どちらかを **40〜90 分ごと**。work モードでは優先順位が最後なので頻度は低い。 |
+
+- **直前に出したカテゴリはスキップ**します。
+- 次のときは常に空（＝黙る）を返します: **quiet 中 / 離席中（マスコットがスリープ状態）/ 非表示中**。
+- **quiet 明けに一斉に話しません。** quiet が解けた最初の tick で「最終会話時刻」を
+  解除時刻に更新するので、そこからまた最低間隔を数え直します。
+- **10 分以上の離席から戻ると、戻った時刻が新しいセッション開始になります**
+  （`Intervals.awayResetsSession`）。昼休みから戻った直後に「休憩しよっか」と言わないためです。
+  10 分未満の離席ではセッションは続きます。
+- ドラッグ中・リアクション中は、その tick の声かけを**捨てます**（後回しにはしません）。
+- 乱数は `scheduler.randomInterval: (ClosedRange<TimeInterval>) -> TimeInterval` で差し替えられます
+  （テストでは常に下限を返しています）。時刻も `evaluate(now:)` の引数なので、
+  スケジューラ全体がタイマー無しでテストできます。
+
+履歴（`ConversationHistory`）は会話 id ごとの最終再生時刻、カテゴリごとの最終再生時刻、
+最近出した id（最大 20 件）、最終会話時刻を持ち、`UserDefaults` に JSON で保存します（3 日で古いものを掃除）。
+
+### 11.4 会話の選び方（`LocalDialogueProvider`）
+
+1. `allowedCategories` で絞る
+2. クールダウン中（`lastShownAt + cooldown > now`）の会話を除く
+3. 直前と同じカテゴリを除く（ただし allowed がそのカテゴリしか無ければ許可）
+4. 最近出した id（`recentlyShownIDs`）を除く
+5. 残りからランダムに 1 つ
+
+候補がゼロになったら、**手動（「ちょっと話して」）のときだけ** 4 → 2 → 3 の順に条件をゆるめて
+必ず 1 つ返します。自動の声かけでは黙ります。
+
+### 11.5 Provider の差し替え（将来 LLM にする）
+
+```swift
+public protocol ConversationProvider: AnyObject {
+    func nextConversation(context: ConversationContext) async -> Conversation?
+}
+```
+
+- 戻り値が Optional なのは「条件に合う会話が無い = 黙る」を表せるようにするためです。
+  無理に何かを返すと、同じ台詞が続いたり場違いな声かけになります。
+- `async` なのは、ネットワークやローカル LLM を使う実装を後から入れられるようにするためです。
+
+LLM 版を足す手順:
+
+1. `Sources/EnokiCore/Dialogue/LLMConversationProvider.swift` を作り、`ConversationProvider` に準拠する。
+   `ConversationContext`（時刻・カテゴリ候補・直近の履歴・モード・セッション経過分）だけを入力にする。
+2. 生成結果を `Conversation`（`id` は生成 ID、`category` は候補から選んだもの）に詰めて返す。
+   失敗・タイムアウト時は `nil` を返すか、`LocalDialogueProvider` にフォールバックする。
+3. `ConversationCoordinator` の `provider` を差し替える（`ConversationHistory` も
+   `ConversationScheduler` もそのまま使えます）。
+4. **ネットワークを使うなら、この README の「権限とセキュリティ」と上のプライバシー注記を必ず書き換えること。**
+
+### 11.6 台詞を足す・書き換える
+
+- 内蔵の台詞を直接いじるなら `Sources/Enoki/Resources/DialogueText/dialogue.json` を編集して `make app`。
+- アプリを組み直さずに差し替えるなら、**使用中スキンのフォルダに `dialogue.json` を置きます**
+  （例: `~/.codex/pets/sakushio_pet/dialogue.json`）。こちらが内蔵より優先されます。
+  メニューの「スキン > 再読み込み」で台詞も読み直します。
+- 同梱ファイルの内容は `DialogueLoaderTests` が検証しています（42 会話 = 7 カテゴリ × 6、
+  id の重複なし、speaker は `saku` / `shiori` のみ、1 会話 4 発言まで）。
+  件数を変えたらテストの期待値も直してください。
+
+### 11.7 Quiet Mode / 仕事中モード
+
+メニューの「会話」から選びます。状態は `UserDefaults` に保存され、`until` が過ぎたら自動的に「通常」へ戻ります。
+
+| 項目 | `QuietMode` | 動作 |
+|---|---|---|
+| 通常 | `.normal` | 声かけあり |
+| 1時間静かにする | `.until(Date)` | 1 時間後まで黙る（メニューに残り時間を表示） |
+| 今日の仕事終了まで静かにする | `.untilEndOfWorkDay(until:)` | 当日の `workEndHour`（既定 18 時）まで黙る。既に過ぎていれば当日 24 時まで。 |
+| 会話OFF | `.off` | 自動の声かけを止める（「ちょっと話して」は動きます） |
+
+「仕事中モード」（`ActivityMode`）:
+
+| モード | 使うカテゴリ |
+|---|---|
+| `work`（既定・チェックあり） | 7 カテゴリ全部（work / water / break / lunch / encouragement が主役） |
+| `rest`（チェックを外す） | `ambient` / `pair` だけ |
+
+仕事中モードを ON にした時刻が、新しい「セッション開始」になります（休憩・水分の周期がそこから数え直しになります）。
+
+### 11.8 吹き出しの見た目
+
+- マスコット窓の上端の上に出ます。入りきらない場合は下側に出て、しっぽの向きも反転します。
+  左右は `visibleFrame` に収まるようクランプします。
+- しっぽは発言者の立ち位置（**朔 = 左 1/4 / 栞 = 右 3/4**）に向きます。
+- 文字は system font 13pt、最大幅 220pt、最大 3 行（超過は末尾省略）。
+  発言者名を小さく上に出します（朔 = 落ち着いた紺、栞 = 落ち着いた赤茶）。
+- フェードイン 0.2 秒 / フェードアウト 0.3 秒。表示時間は **2.5 秒 + 0.08 秒 × 文字数**（3〜7 秒にクランプ）。
+  行間は 1.5〜3.0 秒のランダム。
+
+### 11.9 開発者向け
+
+```bash
+# 起動 2 秒後に 1 回だけしゃべらせる（吹き出しの確認用）
+ENOKI_DEBUG_SPEAK_ON_LAUNCH=1 ./build/Enoki.app/Contents/MacOS/Enoki
+
+# 会話まわりのログだけ見る
+log show --style compact --info --last 5m \
+  --predicate 'subsystem == "com.enoki.mascot" AND (category == "conversation" OR category == "bubble")'
+```
+
+`reaction` の再生は `MascotStateMachine` の `.reactionRequested(name:)` イベントで行います。
+idle / sleeping のときだけ、既存の `reacting` 経路でそのアニメーションを 1 回再生します
+（同梱の台詞には `reaction` が入っていないので、既定では使われません）。
+
+---
+
+## 12. 将来の拡張ポイント
 
 | やりたいこと | 触る場所 |
 |---|---|
 | 新しい状態（例: 通知を受けて `failed` を再生） | `EnokiCore/State/MascotStateMachine.swift` に `Event` / `Effect` を足す。UI 側は `MascotController.apply(_:)` に分岐を足すだけ。 |
 | ドラッグ方向で `running-left` / `running-right` を切り替える | `MascotView.mouseDragged` で移動方向を求め、`Event.dragBegan` に方向を持たせる。`StateMapping` に `dragLeft` / `dragRight` を追加。 |
-| 吹き出し・会話 UI | `MascotWindow` の兄弟として別の `NSPanel` を作り、`MascotController` から出し入れする。テキスト生成を足す場合も、**ネットワークを使うならこの README の「権限とセキュリティ」を書き換えること。** |
+| 会話の台詞を LLM で作る | `ConversationProvider` に準拠したクラスを足し、`ConversationCoordinator` の provider を差し替える（§11.5）。**ネットワークを使うならこの README の「権限とセキュリティ」を書き換えること。** |
+| 声かけの間隔・時間帯を設定できるようにする | `ConversationScheduler.Intervals` と `lunchWindow` / `encouragementWindow` を `AppSettings` から注入する。 |
+| 制作モード（`creation`）を足す | `ActivityMode` に case を足し、`scheduledCategories` を書く。台詞側は `category` を増やす（`DialogueCategory` にも case が必要）。 |
 | 外部から状態を通知（CI 失敗で `failed` を出す等） | `DistributedNotificationCenter` か、`~/Library/Application Support` 配下のファイル監視を `System/` に追加し、`MascotController` から `Event` を流す。 |
 | 複数体の表示 | `MascotController` を複数インスタンス化できるようにし、`AppSettings` をインスタンスごとの suite 名に分ける。 |
 | スキンのホットリロード | `System/` に `DispatchSource.makeFileSystemObjectSource` ベースの監視を足し、`MascotController.reloadSkin()` を呼ぶ。 |
