@@ -6,12 +6,9 @@
 
 ```
 Resources/Characters/
-  saku_shiori_work/
+  saku_shiori_casual/     ← 同梱（私服）。scripts/build_variant_atlas.py で生成
     pet.json
     spritesheet.png
-  saku_shiori_casual/
-    manifest.json
-    idle_1.png …
 ```
 
 スプライトセットの探索順（先に見つかったものを使う）:
@@ -23,8 +20,9 @@ Resources/Characters/
 どこにも無い／読めない場合は、スキンメニューで選んでいる **ベーススキンにフォールバック** します
 （マスコットは普通に動き、`os.Logger` の `appearance` カテゴリに info ログが出ます）。
 
-このリポジトリには**スプライトは同梱していません**。特に `saku_shiori_renofa` は
+同梱しているのは `saku_shiori_casual`（私服）だけです。`saku_shiori_renofa` は
 ユーザーが自分で用意したローカル素材専用で、アプリには決して同梱しません
 （クラブのロゴ・商標・選手名を含む素材を配布しないため）。
+`~/Library/Application Support/Enoki/Characters/saku_shiori_renofa/` に置いてください。
 
 > このファイルは、SwiftPM が空フォルダを扱えないためのプレースホルダも兼ねています。削除しないでください。

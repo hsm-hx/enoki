@@ -761,7 +761,7 @@ idle / sleeping のときだけ、既存の `reacting` 経路でそのアニメ�
   "schema_version": 1,
   "profiles": [
     {"id": "default", "displayName": "Default", "spriteSet": null, "special": false},
-    {"id": "work", "displayName": "Work", "spriteSet": "saku_shiori_work", "special": false},
+    {"id": "work", "displayName": "Work", "spriteSet": null, "special": false},
     {"id": "casual", "displayName": "Casual", "spriteSet": "saku_shiori_casual",
      "dialogueCategories": ["ambient", "pair", "encouragement"],
      "disabledDialogueCategories": ["work"], "special": false},
@@ -808,10 +808,33 @@ idle / sleeping のときだけ、既存の `reacting` 経路でそのアニメ�
 
 - **どこにも無い／読めない場合はベーススキンにフォールバック**し、`os.Logger`（category `appearance`）に
   info ログを出します。マスコットは止まりません。
-- 現在このリポジトリにスプライトは同梱していないので、**4 プロファイルとも全部フォールバック**で動きます
-  （これが正常な状態です）。
+- 同梱しているのは `saku_shiori_casual`（私服）だけです。`default` / `work` は `spriteSet: null` で
+  ベーススキン（通常衣装）をそのまま使います。
 - `saku_shiori_renofa` は **ユーザーが用意したローカル素材専用**です。クラブのロゴ・商標・選手名を含む
   素材はアプリに同梱しません（配布しません）。台詞でも「レノファ」という名称だけを使っています。
+  `~/Library/Application Support/Enoki/Characters/saku_shiori_renofa/` に置くと使われ、無ければ
+  ベーススキンにフォールバックします。
+
+#### 差分素材からスプライトセットを作る（`scripts/build_variant_atlas.py`）
+
+元絵（`idle_1_<variant>.png` + 4×2 の `sprite_1_<variant>.png` / `sprite_2_<variant>.png`）から、
+Codex Pet 形式のシート（8 列 × 9 行、192×208px）を生成します。描き直しはせず、切り出し・縮小・配置だけを行います。
+
+```bash
+pip3 install pillow numpy
+# 私服（アプリに同梱）
+python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio --variant private \
+    --out Sources/Enoki/Resources/Characters/saku_shiori_casual --id sakushio_casual --name "朔と栞（私服）"
+# レノファ（ローカル専用。リポジトリには入れない）
+python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio --variant renofa \
+    --out "$HOME/Library/Application Support/Enoki/Characters/saku_shiori_renofa" --id sakushio_renofa --name "朔と栞（レノファ）"
+```
+
+- 差分ごとの「シートのセル → コマ名（idle_02 / wave_01 / sleep_01 …）」は、スクリプト冒頭の `MAPPINGS` に
+  書いてあります。差分によってコマの並びが違うので、新しい差分を足すときはここに 1 エントリ追加します。
+- キャラクターの身長は **基準シート（内蔵 DefaultSkin）の idle_02 に合わせる**ので、プロファイルを
+  切り替えてもサイズが変わりません。セルに収まらない小物（フラッグの先など）は端が切れます。
+- `--out` の下に `qa/contact-sheet.png`（行・コマのラベル付き一覧）も出ます。確認用なので同梱しません。
 
 ### 12.4 プロファイルの追加方法
 

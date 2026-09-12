@@ -36,7 +36,7 @@ final class AppearanceProfileLoaderTests: XCTestCase {
         XCTAssertFalse(standard.special)
 
         let work = try XCTUnwrap(result.profile(id: "work"))
-        XCTAssertEqual(work.spriteSet, "saku_shiori_work")
+        XCTAssertNil(work.spriteSet, "work は通常衣装 = ベーススキン")
         XCTAssertFalse(work.special)
 
         let casual = try XCTUnwrap(result.profile(id: "casual"))

@@ -9,3 +9,5 @@ build/
 # Xcode
 *.xcodeproj/
 xcuserdata/
+# スプライトセット生成の QA 出力
+Sources/Enoki/Resources/Characters/*/qa/

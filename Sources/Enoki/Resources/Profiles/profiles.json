@@ -1,11 +1,46 @@
 {
   "schema_version": 1,
   "profiles": [
-    {"id": "default", "displayName": "Default", "spriteSet": null, "special": false},
-    {"id": "work", "displayName": "Work", "spriteSet": "saku_shiori_work", "special": false},
-    {"id": "casual", "displayName": "Casual", "spriteSet": "saku_shiori_casual",
-     "dialogueCategories": ["ambient", "pair", "encouragement"], "disabledDialogueCategories": ["work"], "special": false},
-    {"id": "renofa", "displayName": "Renofa", "spriteSet": "saku_shiori_renofa",
-     "dialogueCategories": ["renofa", "ambient", "pair", "encouragement"], "disabledDialogueCategories": ["work"], "special": true}
+    {
+      "id": "default",
+      "displayName": "Default",
+      "spriteSet": null,
+      "special": false
+    },
+    {
+      "id": "work",
+      "displayName": "Work",
+      "spriteSet": null,
+      "special": false
+    },
+    {
+      "id": "casual",
+      "displayName": "Casual",
+      "spriteSet": "saku_shiori_casual",
+      "dialogueCategories": [
+        "ambient",
+        "pair",
+        "encouragement"
+      ],
+      "disabledDialogueCategories": [
+        "work"
+      ],
+      "special": false
+    },
+    {
+      "id": "renofa",
+      "displayName": "Renofa",
+      "spriteSet": "saku_shiori_renofa",
+      "dialogueCategories": [
+        "renofa",
+        "ambient",
+        "pair",
+        "encouragement"
+      ],
+      "disabledDialogueCategories": [
+        "work"
+      ],
+      "special": true
+    }
   ]
 }
