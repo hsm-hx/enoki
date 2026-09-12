@@ -1,0 +1,627 @@
+{
+  "schema_version": 1,
+  "character_ids": [
+    "saku",
+    "shiori"
+  ],
+  "dialogues": [
+    {
+      "id": "work_001",
+      "category": "work",
+      "cooldown": 3600,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "……仕事、戻らなくていいの？"
+        }
+      ]
+    },
+    {
+      "id": "work_002",
+      "category": "work",
+      "cooldown": 4200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "今は仕事の時間ですね。区切りのよいところまで進めましょう"
+        }
+      ]
+    },
+    {
+      "id": "work_003",
+      "category": "work",
+      "cooldown": 3600,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、制作したくなってる？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "さく。今は仕事です"
+        },
+        {
+          "speaker": "saku",
+          "text": "……わかってるよ。ひいらぎも、あとでね"
+        }
+      ]
+    },
+    {
+      "id": "work_004",
+      "category": "work",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "現在の作業、続行中ですね。次の一区切りまで集中しましょう"
+        }
+      ]
+    },
+    {
+      "id": "work_005",
+      "category": "work",
+      "cooldown": 4200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎ、今やることは一つです"
+        },
+        {
+          "speaker": "saku",
+          "text": "うん。次の一個だけやろ"
+        }
+      ]
+    },
+    {
+      "id": "work_006",
+      "category": "work",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "焦らなくていいよ。ちゃんと仕事の続きに戻ればいいからね"
+        }
+      ]
+    },
+    {
+      "id": "water_001",
+      "category": "water",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "水、飲んだ？"
+        }
+      ]
+    },
+    {
+      "id": "water_002",
+      "category": "water",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "水分摂取も必要です。少し飲んでください"
+        }
+      ]
+    },
+    {
+      "id": "water_003",
+      "category": "water",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "そろそろ水分を取っておきましょう"
+        },
+        {
+          "speaker": "saku",
+          "text": "一口でいいよ。飲んでおいで"
+        }
+      ]
+    },
+    {
+      "id": "water_004",
+      "category": "water",
+      "cooldown": 9000,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、飲み物まだ近くにある？"
+        }
+      ]
+    },
+    {
+      "id": "water_005",
+      "category": "water",
+      "cooldown": 9000,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "栞、ひいらぎずっと画面見てる"
+        },
+        {
+          "speaker": "shiori",
+          "text": "はい。まず水分を取ってもらいましょう"
+        }
+      ]
+    },
+    {
+      "id": "water_006",
+      "category": "water",
+      "cooldown": 9000,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "集中していると忘れやすいですね。飲み物を一度確認してください"
+        }
+      ]
+    },
+    {
+      "id": "break_001",
+      "category": "break",
+      "cooldown": 3600,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ちょっと目、休めよっか"
+        }
+      ]
+    },
+    {
+      "id": "break_002",
+      "category": "break",
+      "cooldown": 4200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "長時間の作業になっています。一度、視線を遠くへ向けてください"
+        }
+      ]
+    },
+    {
+      "id": "break_003",
+      "category": "break",
+      "cooldown": 4200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "数分だけ休憩を挟みましょう"
+        },
+        {
+          "speaker": "saku",
+          "text": "僕らも待ってるから、少し休んでおいで"
+        }
+      ]
+    },
+    {
+      "id": "break_004",
+      "category": "break",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "肩、力入ってない？　ちょっとだけ抜こ"
+        }
+      ]
+    },
+    {
+      "id": "break_005",
+      "category": "break",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "栞、休憩って言って"
+        },
+        {
+          "speaker": "shiori",
+          "text": "さくが言えばいいでしょう"
+        },
+        {
+          "speaker": "saku",
+          "text": "……ひいらぎ、休憩"
+        }
+      ]
+    },
+    {
+      "id": "break_006",
+      "category": "break",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "休むのも作業の一部です。少しだけ席を離れて構いません"
+        }
+      ]
+    },
+    {
+      "id": "lunch_001",
+      "category": "lunch",
+      "cooldown": 10800,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "昼ごはん、食べよっか"
+        }
+      ]
+    },
+    {
+      "id": "lunch_002",
+      "category": "lunch",
+      "cooldown": 10800,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "昼食の時間です。区切りのよいところで食べましょう"
+        }
+      ]
+    },
+    {
+      "id": "lunch_003",
+      "category": "lunch",
+      "cooldown": 10800,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "お腹すいてない？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "気づいていなくても、時間は来ています。食事にしましょう"
+        }
+      ]
+    },
+    {
+      "id": "lunch_004",
+      "category": "lunch",
+      "cooldown": 10800,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "仕事の続きは、ごはん食べてからでもできるからね"
+        }
+      ]
+    },
+    {
+      "id": "lunch_005",
+      "category": "lunch",
+      "cooldown": 10800,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎ、昼食は済みましたか"
+        },
+        {
+          "speaker": "saku",
+          "text": "まだなら、今のうちに食べよ"
+        }
+      ]
+    },
+    {
+      "id": "lunch_006",
+      "category": "lunch",
+      "cooldown": 10800,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "午後の作業のためにも、先に食事を入れておきましょう"
+        }
+      ]
+    },
+    {
+      "id": "encouragement_001",
+      "category": "encouragement",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "うん。ちゃんと進んでるよ"
+        }
+      ]
+    },
+    {
+      "id": "encouragement_002",
+      "category": "encouragement",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ここまでの作業は継続できています"
+        }
+      ]
+    },
+    {
+      "id": "encouragement_003",
+      "category": "encouragement",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、今のところまでで大丈夫"
+        },
+        {
+          "speaker": "shiori",
+          "text": "はい。次も一つずつ進めれば十分です"
+        }
+      ]
+    },
+    {
+      "id": "encouragement_004",
+      "category": "encouragement",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "だから形になってるんでしょ"
+        }
+      ]
+    },
+    {
+      "id": "encouragement_005",
+      "category": "encouragement",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "進捗を記録しています。今日も前へ進んでいますね"
+        }
+      ]
+    },
+    {
+      "id": "encouragement_006",
+      "category": "encouragement",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さく、ひいらぎの作業を邪魔しないでください"
+        },
+        {
+          "speaker": "saku",
+          "text": "見てただけだよ"
+        },
+        {
+          "speaker": "shiori",
+          "text": "では、静かに見守りましょう"
+        }
+      ]
+    },
+    {
+      "id": "ambient_001",
+      "category": "ambient",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "栞、ひいらぎ集中してるね"
+        },
+        {
+          "speaker": "shiori",
+          "text": "はい。今は声をかけないほうがよさそうです"
+        },
+        {
+          "speaker": "saku",
+          "text": "じゃあ、静かに見てよ"
+        }
+      ]
+    },
+    {
+      "id": "ambient_002",
+      "category": "ambient",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "栞、眠くない？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "さくのほうが先ほどから瞬きが多いですよ"
+        },
+        {
+          "speaker": "saku",
+          "text": "……見てたの"
+        }
+      ]
+    },
+    {
+      "id": "ambient_003",
+      "category": "ambient",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さく、少し位置を詰めてください"
+        },
+        {
+          "speaker": "saku",
+          "text": "狭い？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎの画面を隠しています"
+        }
+      ]
+    },
+    {
+      "id": "ambient_004",
+      "category": "ambient",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "今日、外明るいかな"
+        },
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎがカーテンを開けたら分かります"
+        },
+        {
+          "speaker": "saku",
+          "text": "レースカーテンの光、好きなんだよね"
+        }
+      ]
+    },
+    {
+      "id": "ambient_005",
+      "category": "ambient",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さく。何を見ているんですか"
+        },
+        {
+          "speaker": "saku",
+          "text": "ひいらぎのカーソル"
+        },
+        {
+          "speaker": "shiori",
+          "text": "それは面白いですか"
+        },
+        {
+          "speaker": "saku",
+          "text": "ちょっと"
+        }
+      ]
+    },
+    {
+      "id": "ambient_006",
+      "category": "ambient",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "栞、今日の記録は？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "まだ途中です。ひいらぎの仕事も終わっていませんから"
+        },
+        {
+          "speaker": "saku",
+          "text": "じゃあ、まだ一緒にいよ"
+        }
+      ]
+    },
+    {
+      "id": "pair_001",
+      "category": "pair",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、ちゃんと仕事してる？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "さく。監視しているような言い方はやめてください"
+        },
+        {
+          "speaker": "saku",
+          "text": "……じゃあ、仕事の時間だよ"
+        }
+      ]
+    },
+    {
+      "id": "pair_002",
+      "category": "pair",
+      "cooldown": 5400,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さく、ひいらぎに何か言うことはありますか"
+        },
+        {
+          "speaker": "saku",
+          "text": "んー……無理しすぎないでね"
+        },
+        {
+          "speaker": "shiori",
+          "text": "それで十分です"
+        }
+      ]
+    },
+    {
+      "id": "pair_003",
+      "category": "pair",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "栞、今日もう結構経ったね"
+        },
+        {
+          "speaker": "shiori",
+          "text": "はい。ひいらぎも、一度休憩したほうがよさそうです"
+        },
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、ちょっと休も"
+        }
+      ]
+    },
+    {
+      "id": "pair_004",
+      "category": "pair",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "進捗を記録しています"
+        },
+        {
+          "speaker": "saku",
+          "text": "栞、それ言いたいだけじゃない？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "否定はしません"
+        }
+      ]
+    },
+    {
+      "id": "pair_005",
+      "category": "pair",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、あとで制作する？"
+        },
+        {
+          "speaker": "shiori",
+          "text": "仕事が終わってからです"
+        },
+        {
+          "speaker": "saku",
+          "text": "うん。じゃあ、あとで続きを見よ"
+        }
+      ]
+    },
+    {
+      "id": "pair_006",
+      "category": "pair",
+      "cooldown": 7200,
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎ、少し疲れてきましたか"
+        },
+        {
+          "speaker": "saku",
+          "text": "顔見えないけどね"
+        },
+        {
+          "speaker": "shiori",
+          "text": "ですから、時間で判断しています"
+        },
+        {
+          "speaker": "saku",
+          "text": "……そっか"
+        }
+      ]
+    }
+  ]
+}

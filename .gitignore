@@ -1,0 +1,11 @@
+# SwiftPM
+.build/
+.swiftpm/
+Package.resolved
+# .app 出力 (scripts/build_app.sh)
+build/
+# macOS
+.DS_Store
+# Xcode
+*.xcodeproj/
+xcuserdata/
