@@ -183,7 +183,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             submenu.addItem(empty)
         }
         for profile in profiles {
-            let suffix = (profile.id == manualID) ? "（手動）" : ""
+            // Default は「手動で固定」ではなく「自動に戻す」。仕事が終わったあとに Default を押して
+            // 仕事着に戻ってしまわないように、手動選択の解除と同じ扱いにする。
+            let isDefault = profile.id == AppearanceProfile.ID.default
+            let suffix = isDefault ? "（自動）" : ((profile.id == manualID) ? "（手動）" : "")
             let sub = NSMenuItem(title: profile.displayName + suffix,
                                  action: #selector(selectAppearanceProfile(_:)), keyEquivalent: "")
             sub.target = self
@@ -332,7 +335,12 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     @objc private func selectAppearanceProfile(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String else { return }
-        controller.selectAppearanceProfile(id: id)
+        if id == AppearanceProfile.ID.default {
+            // Default = 自動（手動選択を解除）。仕事中モード連動なら ON→通常衣装 / OFF→私服になる
+            controller.clearAppearanceOverride()
+        } else {
+            controller.selectAppearanceProfile(id: id)
+        }
         Self.logger.info("見た目プロファイルを選択: \(id, privacy: .public)")
     }
 

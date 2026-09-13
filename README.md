@@ -332,7 +332,7 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
 ✓ 仕事中モード
   見た目 (Appearance) ▸ 現在: Work（自動）
                         ─
-                        Default / ✓Work / Casual / Renofa（手動選択中は「（手動）」付き）
+                        Default（自動） / ✓Work / Casual / Renofa（手動選択中は「（手動）」付き）
                         ─
                         ✓仕事中モードと連動して切り替え
                         手動選択を解除して自動に戻す（手動選択が無ければ無効）
@@ -882,6 +882,9 @@ python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio -
 | なし | 何もしない |
 
 「手動選択を解除して自動に戻す」はメニューからいつでも実行できます（手動選択が無いときは無効）。
+メニューの **「Default（自動）」も同じ意味**です。Default を「手動で固定」にすると、仕事中モード OFF の
+あとに Default を押したとき通常衣装（仕事着）に戻ってしまうため、Default = 自動ルールに従う、としています
+（連動 ON なら ON→通常衣装 / OFF→私服、連動 OFF なら `default` プロファイル）。
 
 ### 12.7 起動時プロファイルと将来の時刻ベース切替
 
