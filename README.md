@@ -58,6 +58,9 @@ Sources/EnokiCore/
   Appearance/AppearanceProfile.swift       見た目プロファイルの定義と allowedCategories
   Appearance/AppearanceProfileLoader.swift profiles.json のローダ（壊れた項目だけ捨てる）
   Appearance/AppearanceResolver.swift      どのプロファイルで立つかを決める純関数
+  Appearance/DayProfileResolver.swift      その日がどんな日か（曜日・祝日・試合日）→ プロファイル id（純関数）
+  Appearance/JapaneseHolidays.swift        日本の祝日（内閣府の公式データ + データに無い年の計算）
+  Appearance/RenofaSchedule.swift          レノファ山口FC の試合日程（モデル + ローダ）
 
 Sources/Enoki/
   main.swift                     NSApplication のセットアップ
@@ -72,6 +75,8 @@ Sources/Enoki/
   System/LoginItemManager.swift  SMAppService によるログイン項目
   Resources/DefaultSkin/         内蔵スキン（pet.json + spritesheet.png）
   Resources/Profiles/profiles.json  見た目プロファイルの定義（§12）
+  Resources/Schedule/renofa-schedule.json  レノファの試合日程（§12.9）
+  Resources/Holidays/jp-holidays.json      日本の祝日（内閣府の公式データ。§12.9）
   Resources/Characters/          内蔵スプライトセット置き場（現在は README のみ）
   Resources/AppIcon/icon-1024.png
 ```
@@ -331,6 +336,7 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
                         ✓通常 / 1時間静かにする / 今日の仕事終了まで静かにする / 会話OFF
 ✓ 仕事中モード
   見た目 (Appearance) ▸ 現在: Work（自動）
+                        今日: 日曜日 → Casual（その日の自動判定。§12.9）
                         ─
                         Default（自動） / ✓Work / Casual / Renofa（手動選択中は「（手動）」付き）
                         ─
@@ -393,6 +399,7 @@ ENOKI_SKIN_DIR=~/my_pet ./build/Enoki.app/Contents/MacOS/Enoki
 | `workEndHour` | Int | `18`（0〜23） |
 | `conversationHistoryData` | Data | なし（会話履歴の JSON） |
 | `appearanceManualOverride` | String? | なし（メニューで選んだプロファイル id。無ければ自動） |
+| `appearanceManualOverrideDay` | String? | なし（手動選択した日 `yyyy-MM-dd`。日付が変われば手動選択は解除。§12.9） |
 | `appearanceAutoSwitch` | Bool | `true`（仕事中モードと連動して切り替える） |
 | `appearanceStartupProfileID` | String? | なし（= 前回の状態を復元。`"auto"` で自動、または profile id） |
 
@@ -480,12 +487,17 @@ make clean
   （`ConversationScheduler` の定数）。`workEndHour` だけが設定（既定 18 時）です。
 - **台詞に書いた `reaction` は、スキンに同名のアニメーションがあるときだけ**再生されます。
   同梱の台詞には `reaction` が入っていないので、既定では使われません。
-- **見た目プロファイル用のスプライトは同梱していません。** `work` / `casual` / `renofa` の
-  `spriteSet` はどこにも置かれていないので、いまは 4 プロファイルとも
+- **同梱している見た目プロファイル用のスプライトは `saku_shiori_casual`（私服）だけ**です。
+  `default` / `work` はベーススキン（通常衣装）、`renofa` は素材を置かなければ
   **ベーススキンにフォールバック**して動きます（見た目は変わらず、台詞のカテゴリ制限だけが効きます）。
   素材の置き方は §12.3。
-- **時刻ベースの自動切替（試合日など）は未実装**です。`AppearanceResolver.resolve` の
-  `scheduled` 引数がフックとして空いているだけで、MVP では常に `nil` です（§12.7）。
+- **その日の自動判定は「日」単位**です（§12.9）。曜日・祝日・レノファの試合日までは見ますが、
+  **キックオフ時刻に合わせた切り替え（試合前／試合中／試合後）は未実装**です。
+  入口（`RenofaMatch.kickoffDate`）だけ用意してあります。
+- **試合日程と祝日データは同梱の JSON** です（アプリは通信しません）。
+  祝日は内閣府が翌年分までしか公開しないので、年に一度 `scripts/update_holidays.py` で更新します。
+  データに無い年は現行ルールの計算で補うため、一過性の特例（五輪年の移動など）は合いません（§12.9）。
+  試合日程も、シーズンが変わったら差し替えが必要です。
 
 ---
 
@@ -719,8 +731,9 @@ idle / sleeping のときだけ、既存の `reacting` 経路でそのアニメ�
 だけで表現します。
 
 > **プライバシー: ここでも監視も通信もしません。**
-> 試合日や天気を取りに行くことはありません（ネットワークコードはゼロのままです）。
-> 見ているのは「設定・仕事中モード・手動選択」だけで、切り替えは完全にローカルです。
+> 試合日や天気を取りに行くことはありません（アプリのネットワークコードはゼロのままです）。
+> 見ているのは「設定・仕事中モード・手動選択・カレンダー（日付）」だけで、切り替えは完全にローカルです。
+> 祝日と試合日程は**開発時に取得して同梱した JSON** を読むだけです（§12.9）。
 
 ### 12.1 アーキテクチャ
 
@@ -731,7 +744,8 @@ idle / sleeping のときだけ、既存の `reacting` 経路でそのアニメ�
    appearanceManualOverride ─┐                        │
    appearanceAutoSwitch ─────┼──► AppearanceState ────┤
    activityMode ─────────────┘                        ▼
-                          （将来）scheduled ──► AppearanceResolver.resolve() ──► profile id
+  jp-holidays.json ─┐
+  renofa-schedule.json ─┴► DayProfileResolver ──► scheduled ──► AppearanceResolver.resolve() ──► profile id
                                                       │
                                                       ▼
                                          AppearanceCoordinator（@MainActor）
@@ -868,7 +882,7 @@ python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio -
 `AppearanceResolver.resolve` の優先順位:
 
 1. **`manualOverride`**（メニューで選んだプロファイル。`profiles.json` に無ければ無視）
-2. **`scheduled`**（将来の時刻ベース切替フック。MVP では常に `nil`）
+2. **`scheduled`**（その日の自動判定: レノファ試合日 → `renofa` / 土日・祝日 → `casual`。§12.9）
 3. **`autoSwitch` が ON なら仕事中モード**: `work` → `work` プロファイル、それ以外 → `casual` プロファイル
 4. **`default`**
 
@@ -881,27 +895,28 @@ python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio -
 | `special: true`（`renofa` など） | **保持**する（「今日はこの見た目でいたい」を優先。Work Mode OFF でも上書きされない） |
 | なし | 何もしない |
 
+**手動選択はその日限り**です。日付が変わるか次に起動すると解除され、その日の自動判定に戻ります（§12.9）。
 「手動選択を解除して自動に戻す」はメニューからいつでも実行できます（手動選択が無いときは無効）。
 メニューの **「Default（自動）」も同じ意味**です。Default を「手動で固定」にすると、仕事中モード OFF の
 あとに Default を押したとき通常衣装（仕事着）に戻ってしまうため、Default = 自動ルールに従う、としています
 （連動 ON なら ON→通常衣装 / OFF→私服、連動 OFF なら `default` プロファイル）。
 
-### 12.7 起動時プロファイルと将来の時刻ベース切替
+### 12.7 起動時プロファイル
 
 `appearanceStartupProfileID`（メニュー「起動時のプロファイル」）:
 
 | 設定 | 起動時の動き |
 |---|---|
-| なし（既定・「前回の状態」） | 前回の手動選択をそのまま復元する |
+| なし（既定・「前回の状態」） | 前回の手動選択を復元する。ただし**選んだ日と今日が違えば解除**する（§12.9） |
 | `"auto"`（「自動」） | 手動選択を解除して、仕事中モードの自動ルールから始める |
 | プロファイル id | 毎回そのプロファイルを手動選択した状態で始める |
 
-時刻ベースの自動切替（例: 試合日は `renofa`、12 月は `christmas`）は、
-`AppearanceResolver.resolve(state:activityMode:scheduled:profiles:)` の
-**`scheduled` 引数がフックとして空いている**だけで、MVP では常に `nil` を渡しています。
-将来入れるときは「日付 → プロファイル id」を返す純関数を `EnokiCore/Appearance/` に足し、
-`AppearanceCoordinator` から `scheduled` に渡します（`manualOverride` より弱く、`autoSwitch` より強い）。
-**そのときもネットワークは使わず、ローカルの設定・カレンダー計算だけで決めます。**
+「起動時のプロファイル」で**プロファイル id を指定しているときだけ**、その日の自動判定より優先されます
+（毎回その見た目で始めたい、という明示的な設定なので）。「前回の状態」「自動」のときは §12.9 の
+「その日限り」の解除が先に効きます。
+
+その日の自動判定（曜日・祝日・試合日 → `scheduled`）は §12.9 を見てください。
+**ネットワークは使わず、ローカルのデータとカレンダーだけで決めます。**
 
 ### 12.8 切り替えの見え方
 
@@ -910,8 +925,129 @@ python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio -
 - ウィンドウ位置・表示倍率は変わりません（差し替え後のサイズ変更は既存の「下端中央固定」に任せ、
   保存済みの位置も書き換えません）。
 - 解決先のスキンが**いま表示中のスキンと同じフォルダなら、読み直しも差し替えもしません**
-  （スプライト未配置で全プロファイルがフォールバックしている今は、この経路になります）。
+  （スプライトを置いていないプロファイル同士の行き来は、この経路になります）。
 - `transitionAnimation` が新しいスキンにあれば、フェードイン後に 1 回だけ再生します（「着替え」の演出）。
+
+### 12.9 その日の自動判定（曜日・祝日・レノファ試合日）
+
+「今日はどんな日か」を朝いちばんに決めて、`AppearanceResolver.resolve` の `scheduled` に渡します。
+判定は `DayProfileResolver`（純関数）だけで完結し、**時計もファイルもネットワークも触りません**
+（日付は引数、祝日と試合日程は読み込み済みのデータを受け取ります）。
+
+#### 判定フロー
+
+```
+  Date（今日）
+      │
+      ▼
+  DayProfileResolver.rules（先頭から順に評価し、最初に一致したもの）
+   ① レノファの試合日？  ── はい ──► renofa   理由「レノファ戦 vs ○○ (H) 14:00」
+   ② 土曜 / 日曜？        ── はい ──► casual   理由「土曜日」「日曜日」
+   ③ 祝日？               ── はい ──► casual   理由「祝日: 文化の日」
+   ④ どれでもない                 ──► nil      理由「平日」
+      │                                 （= 特別な日ではない。既存ルールに任せる）
+      ▼
+  AppearanceResolver.resolve(scheduled:)
+   1. 手動選択（その日限り）  2. ここで決めた profileID  3. 仕事中モード連動  4. default
+```
+
+| 今日 | 解決されるプロファイル |
+|---|---|
+| レノファの試合日（曜日・祝日より強い） | `renofa` |
+| 土曜・日曜 | `casual` |
+| 祝日（振替休日・国民の休日を含む） | `casual` |
+| 平日 | **`default`**。ただし仕事中モード連動が ON のときは既存どおり ON → `work` / OFF → `casual` |
+
+ルールを足したくなったら（季節もの・誕生日・他のスポーツ）、`DayProfileResolver.rules` に
+`DayRule` を 1 つ足すだけです。**汎用のルールエンジンにはしません**（読めなくなるので）。
+
+#### 祝日の判定
+
+**内閣府が公開している公式データが第一ソース**です。
+[`syukujitsu.csv`](https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv)（Shift_JIS, 1955 年〜翌年分、
+振替休日・国民の休日も入っている）を開発時に取得し、UTF-8 の JSON に変換して同梱しています。
+
+```bash
+# 年に一度（新しい年の分が公開される秋ごろ）実行して更新する。依存は Python 標準ライブラリだけ。
+python3 scripts/update_holidays.py          # 取得して Sources/Enoki/Resources/Holidays/jp-holidays.json を更新
+python3 scripts/update_holidays.py --check  # 更新せず差分だけ見る
+```
+
+| ファイル | 役割 |
+|---|---|
+| `~/Library/Application Support/Enoki/jp-holidays.json` | ユーザーが自分で置いた祝日データ（**あればこちらを優先**） |
+| アプリ内蔵の `Resources/Holidays/jp-holidays.json` | 同梱データ（`scripts/update_holidays.py` が作る） |
+| `~/Library/Application Support/Enoki/holidays-overrides.json` | 一過性の特例。データより**優先**して足し引きする（同梱ファイルはありません） |
+
+```json
+{"add": [{"date": "2021-07-22", "name": "海の日"}], "remove": ["2021-07-19"]}
+```
+
+**データに無い年（更新し忘れた年・ずっと先の年）だけ**、`JapaneseHolidays.fallbackHolidays` が
+「国民の祝日に関する法律」の現行ルールで計算して補います（固定日・ハッピーマンデー・春分／秋分の
+近似式 + 振替休日 + 国民の休日）。計算は現行ルールなので、制度が変わる前の年や五輪年の移動のような
+一過性の特例は合いません。そのための `holidays-overrides.json` です。
+
+#### 試合日程（`renofa-schedule.json`）
+
+| 置き場 | 使いどころ |
+|---|---|
+| `~/Library/Application Support/Enoki/renofa-schedule.json` | **こちらが優先**。アプリを作り直さずに差し替えられる |
+| アプリ内蔵の `Resources/Schedule/renofa-schedule.json` | 同梱データ（開発時に公式サイトから写したもの） |
+
+```json
+{
+  "schema_version": 1,
+  "team": "renofa-yamaguchi",
+  "season": "2026",
+  "source": "https://www.renofa.com/game_schedule2026-27/",
+  "updated_at": "2026-09-13",
+  "matches": [
+    {"date": "2026-09-20", "kickoff": "13:00", "opponent": "ツエーゲン金沢", "home": false,
+     "competition": "J3", "venue": "ゴースタ"}
+  ]
+}
+```
+
+| キー | 型 | 意味 |
+|---|---|---|
+| `date` | String | **必須**。`yyyy-MM-dd`（ローカル暦）。書式が違う試合はその 1 件だけ捨てます。 |
+| `kickoff` | String? | `HH:mm`。判定には使いません（将来のキックオフ連動用）。書式が違えば時刻だけ捨てます。 |
+| `opponent` | String | **必須**。対戦相手。 |
+| `home` | Bool | ホームゲームなら `true`（メニューの `(H)` / `(A)`）。 |
+| `competition` / `venue` / `note` | String? | 大会名・会場・メモ。表示用。 |
+
+- 同梱データはシーズンが変わると古くなります。更新するときは**公式サイトで確認できた試合だけ**を書き、
+  `source` に取得元の URL（手で書いたなら `"manual"`）、`updated_at` に更新日を入れてください。
+  推測した日程は入れない、が原則です（違う日に着替えてしまうため）。
+- **アプリは日程を取りに行きません。** データはリポジトリに同梱するか、上の置き場に自分で置きます。
+
+#### 日付が変わったときの再評価
+
+- 起動時（`AppearanceCoordinator.start()`）
+- 日付が変わったとき（`NSCalendarDayChanged` 通知）
+- スリープから復帰したとき（`NSWorkspace.didWakeNotification`。夜通しスリープしていた場合の取りこぼし対策）
+
+の 3 か所で `reevaluateDay(reason:)` が走り、**手動選択の期限切れを処理してから**解決し直します。
+**ポーリングはしません。** ログ（category `appearance`）には「今日: 日曜日 → casual」のように出ます。
+
+#### 手動選択は「その日限り」
+
+メニューでプロファイルを選ぶと、`appearanceManualOverride` と一緒に選んだ日
+（`appearanceManualOverrideDay` = `yyyy-MM-dd`）を控えます。
+**日付が変わるか次に起動したとき、選んだ日が今日と違えば手動選択は解除**され、その日の自動判定に戻ります
+（`AppearanceResolver.expiredOverride`）。
+「今日は試合だから renofa で」と選んだ見た目が翌日まで残らないように、という意図です。
+例外は「起動時のプロファイル」でプロファイル id を指定しているときだけです（§12.7）。
+
+#### 将来の拡張ポイント
+
+- **キックオフ時刻に連動する**: `RenofaMatch.kickoffDate(calendar:)` が入口です。
+  試合前／試合中／試合後でプロファイルや台詞カテゴリ（`renofa_pre_match` / `renofa_match` /
+  `renofa_post_match`。§12.5）を変えるなら、`DayProfileResolver` に「時刻まで見る版」を足し、
+  `AppearanceCoordinator` にキックオフ時刻のタイマーを 1 本足します（日付の再評価と同じ流儀で、ポーリングはしない）。
+- **判定を増やす**: `DayProfileResolver.rules` に `DayRule` を足すだけです（季節・誕生日・他のスポーツ）。
+  プロファイル自体は `profiles.json` に 1 項目足せば増やせます（§12.4）。
 
 ---
 
@@ -928,4 +1064,6 @@ python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio -
 | 複数体の表示 | `MascotController` を複数インスタンス化できるようにし、`AppSettings` をインスタンスごとの suite 名に分ける。 |
 | スキンのホットリロード | `System/` に `DispatchSource.makeFileSystemObjectSource` ベースの監視を足し、`MascotController.reloadSkin()` を呼ぶ。 |
 | 見た目プロファイルを増やす | `Sources/Enoki/Resources/Profiles/profiles.json` に 1 項目足す（§12.4）。Swift の変更は不要。 |
-| 時刻ベースで見た目を切り替える | 「日付 → プロファイル id」を返す純関数を `EnokiCore/Appearance/` に足し、`AppearanceCoordinator` から `AppearanceResolver.resolve` の `scheduled` に渡す（§12.7）。 |
+| その日の判定ルールを増やす（季節・誕生日など） | `DayProfileResolver.rules` に `DayRule` を 1 つ足す（§12.9）。 |
+| キックオフ時刻に合わせて切り替える | `RenofaMatch.kickoffDate` を使って「時刻まで見る版」の判定を足し、`AppearanceCoordinator` にキックオフのタイマーを 1 本足す（§12.9）。 |
+| 祝日データを新しい年に更新する | `python3 scripts/update_holidays.py`（内閣府の公式 CSV → 同梱 JSON。§12.9）。 |

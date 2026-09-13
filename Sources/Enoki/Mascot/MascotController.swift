@@ -51,6 +51,24 @@ enum BundledResources {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
+    /// 内蔵のレノファ試合日程
+    static var scheduleURL: URL? {
+        guard let bundle = resourceBundle else { return nil }
+        let url = bundle.bundleURL
+            .appendingPathComponent("Schedule", isDirectory: true)
+            .appendingPathComponent(RenofaScheduleLoader.fileName)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// 内蔵の祝日データ（内閣府の公式 CSV を変換したもの。`scripts/update_holidays.py`）
+    static var holidaysURL: URL? {
+        guard let bundle = resourceBundle else { return nil }
+        let url = bundle.bundleURL
+            .appendingPathComponent("Holidays", isDirectory: true)
+            .appendingPathComponent(JapaneseHolidayData.fileName)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
     /// 内蔵の台詞ファイル
     static var dialogueURL: URL? {
         guard let bundle = resourceBundle else { return nil }
@@ -219,6 +237,8 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost, Ap
     var currentAppearanceProfile: AppearanceProfile { appearance?.currentProfile ?? .fallbackDefault }
     var isAppearanceManuallyOverridden: Bool { appearance?.isManuallyOverridden ?? false }
     var appearanceSpriteSetDescription: String { appearance?.spriteSetDescription ?? "-" }
+    /// 「今日: 日曜日 → Casual」（メニュー・About 用）
+    var appearanceTodayDescription: String { appearance?.todayDescription ?? "-" }
 
     func selectAppearanceProfile(id: String) { appearance?.selectProfile(id: id) }
     func clearAppearanceOverride() { appearance?.clearManualOverride() }
@@ -430,7 +450,9 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost, Ap
         case .appearanceManualOverride, .appearanceAutoSwitch, .appearanceStartupProfileID:
             appearance?.settingsDidChange(key: key)
         case .skinDirectory, .windowOriginX, .windowOriginY, .hasSavedWindowOrigin,
-             .quietModeRaw, .quietUntil, .workEndHour, .conversationHistoryData:
+             .quietModeRaw, .quietUntil, .workEndHour, .conversationHistoryData,
+             .appearanceManualOverrideDay:
+            // 手動選択した日は `appearanceManualOverride` と一緒に保存されるので、ここでは何もしない
             break
         }
     }

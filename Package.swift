@@ -25,6 +25,8 @@ let package = Package(
                 .copy("Resources/DialogueText"),
                 .copy("Resources/Profiles"),
                 .copy("Resources/Characters"),
+                .copy("Resources/Schedule"),
+                .copy("Resources/Holidays"),
             ]
         ),
         .testTarget(

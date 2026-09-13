@@ -23,9 +23,10 @@ protocol AppearanceHost: AnyObject {
 
 /// 見た目プロファイル（§12）の司令塔。
 ///
-/// 「どのプロファイルか」は `AppearanceResolver`（純関数）が決め、ここは
-/// スプライトセットのフォルダ解決・スキンの読み込み・フェード付きの差し替えだけを担当する。
-/// **ネットワークも外部プロセスも使わない**（試合日などを取りに行くことはしない）。
+/// 「どのプロファイルか」は `AppearanceResolver` / `DayProfileResolver`（純関数）が決め、ここは
+/// データの読み込み（祝日・試合日程）・スプライトセットのフォルダ解決・スキンの読み込み・
+/// フェード付きの差し替え・日付が変わったときの再評価だけを担当する。
+/// **ネットワークも外部プロセスも使わない**（試合日は同梱・ユーザー配置の JSON を読むだけ）。
 @MainActor
 final class AppearanceCoordinator {
 
@@ -34,14 +35,26 @@ final class AppearanceCoordinator {
     static let fadeOutDuration: TimeInterval = 0.15
     static let fadeInDuration: TimeInterval = 0.2
 
+    /// ユーザーが自分でデータを置ける場所（`~/Library/Application Support/Enoki/`）
+    static var userSupportRoot: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Enoki", isDirectory: true)
+    }
+
     /// ユーザーが自分で置けるスプライトセット置き場
     static var userCharactersRoot: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Enoki/Characters", isDirectory: true)
+        userSupportRoot.appendingPathComponent("Characters", isDirectory: true)
     }
 
     private let settings: AppSettings
     private weak var host: AppearanceHost?
+
+    /// 祝日（内閣府の公式データ + 特例ファイル）
+    private let holidays: JapaneseHolidays
+    /// レノファの試合日程
+    private(set) var schedule: RenofaSchedule = .empty
+    /// 日付が変わった／スリープから復帰したときの再評価用
+    private var dayObservers: [NSObjectProtocol] = []
 
     private(set) var profiles: [AppearanceProfile] = [.fallbackDefault]
     private(set) var currentProfile: AppearanceProfile = .fallbackDefault
@@ -56,7 +69,13 @@ final class AppearanceCoordinator {
     init(settings: AppSettings, host: AppearanceHost) {
         self.settings = settings
         self.host = host
+        self.holidays = Self.loadHolidays()
         loadProfiles()
+        loadSchedule()
+    }
+
+    deinit {
+        for observer in dayObservers { NotificationCenter.default.removeObserver(observer) }
     }
 
     // MARK: - プロファイル定義
@@ -80,18 +99,144 @@ final class AppearanceCoordinator {
         }
     }
 
+    // MARK: - その日の判定に使うデータ
+
+    /// 祝日データ。ユーザー配置（`~/Library/Application Support/Enoki/jp-holidays.json`）があればそちらを優先し、
+    /// 無ければ内蔵データを読む。特例ファイル（`holidays-overrides.json`）があれば重ねる。
+    private static func loadHolidays() -> JapaneseHolidays {
+        var data = JapaneseHolidayData.empty
+        let candidates = [userSupportRoot.appendingPathComponent(JapaneseHolidayData.fileName),
+                          BundledResources.holidaysURL].compactMap { $0 }
+        for url in candidates {
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            guard let loaded = try? JapaneseHolidayData.load(url: url), !loaded.isEmpty else {
+                logger.error("祝日データを読み込めません: \(url.path, privacy: .public)")
+                continue
+            }
+            data = loaded
+            logger.info("祝日データ: \(url.path, privacy: .public)（\(loaded.firstYear ?? 0)〜\(loaded.lastYear ?? 0) 年 \(loaded.holidays.count) 件）")
+            break
+        }
+        if data.isEmpty {
+            logger.info("祝日データが無いので、現行ルールの計算で判定します")
+        }
+
+        let overridesURL = userSupportRoot.appendingPathComponent(JapaneseHolidayOverrides.fileName)
+        var overrides = JapaneseHolidayOverrides.none
+        if FileManager.default.fileExists(atPath: overridesURL.path) {
+            overrides = JapaneseHolidayOverrides.load(url: overridesURL)
+            logger.info("祝日の特例: 追加 \(overrides.add.count) 件 / 除外 \(overrides.remove.count) 件（\(overridesURL.path, privacy: .public)）")
+        }
+        return JapaneseHolidays(data: data, overrides: overrides)
+    }
+
+    /// 試合日程。ユーザー配置（アプリを作り直さずに差し替えられる）→ 内蔵 の順に探す。
+    private func loadSchedule() {
+        let candidates = [Self.userSupportRoot.appendingPathComponent(RenofaScheduleLoader.fileName),
+                          BundledResources.scheduleURL].compactMap { $0 }
+        for url in candidates {
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            do {
+                let result = try RenofaScheduleLoader.load(url: url)
+                for issue in result.issues {
+                    Self.logger.error("試合を 1 件読み飛ばしました: \(issue.localizedDescription, privacy: .public)")
+                }
+                schedule = result.schedule
+                Self.logger.info("試合日程: \(url.path, privacy: .public)（\(result.schedule.matches.count) 試合 / 取得元 \(result.schedule.source ?? "-", privacy: .public)）")
+                return
+            } catch {
+                Self.logger.error("試合日程を読み込めません（\(url.path, privacy: .public)）: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        schedule = .empty
+        Self.logger.info("試合日程がありません。曜日と祝日だけで判定します")
+    }
+
+    // MARK: - 今日の判定（§12.9）
+
+    /// 今日がどんな日か（`profileID == nil` なら特別な日ではない = 既存ルールに任せる）
+    var todayDecision: DayProfileDecision {
+        DayProfileResolver.resolve(date: Date(), schedule: schedule, holidays: holidays)
+    }
+
+    /// メニュー・About の 1 行（「今日: 日曜日 → Casual」「今日: 平日」）
+    var todayDescription: String {
+        let decision = todayDecision
+        guard let id = decision.profileID, let profile = profile(id: id) else {
+            return "今日: \(decision.reason)"
+        }
+        return "今日: \(decision.reason) → \(profile.displayName)"
+    }
+
+    /// 日付が変わった／スリープから復帰した: 手動選択の期限切れを処理してから解決し直す
+    func reevaluateDay(reason: String) {
+        let today = DayProfileResolver.dayKey(for: Date())
+        expireManualOverrideIfNeeded(today: today)
+        let decision = todayDecision
+        Self.logger.info("\(reason, privacy: .public) → 今日: \(decision.reason, privacy: .public) → \(decision.profileID ?? "default（既存ルール）", privacy: .public)")
+        apply()
+    }
+
+    /// 手動選択は**その日限り**。選んだ日と今日が違えば解除する。
+    @discardableResult
+    private func expireManualOverrideIfNeeded(today: String) -> Bool {
+        let next = AppearanceResolver.expiredOverride(current: settings.appearanceManualOverride,
+                                                      setOn: settings.appearanceManualOverrideDay,
+                                                      today: today)
+        guard next != settings.appearanceManualOverride else { return false }
+        Self.logger.info("日付が変わったので手動選択を解除しました: \(self.settings.appearanceManualOverride ?? "(なし)", privacy: .public)")
+        settings.appearanceManualOverride = next   // 通知経由で apply が走る
+        settings.appearanceManualOverrideDay = nil
+        return true
+    }
+
+    private func registerDayObservers() {
+        let dayChanged = NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged,
+                                                               object: nil,
+                                                               queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reevaluateDay(reason: "日付が変わりました") }
+        }
+        let didWake = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification,
+                                                                        object: nil,
+                                                                        queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reevaluateDay(reason: "スリープから復帰しました") }
+        }
+        dayObservers = [dayChanged, didWake]
+    }
+
     // MARK: - 起動
 
-    /// 起動時: 「起動時のプロファイル」設定を手動選択へ反映してから解決・適用する
+    /// 起動時: 「起動時のプロファイル」設定と「手動選択はその日限り」を反映してから解決・適用する
     func start() {
+        let today = DayProfileResolver.dayKey(for: Date())
         let startup = AppearanceResolver.startupOverride(startupProfileID: settings.appearanceStartupProfileID,
                                                          stored: settings.appearanceManualOverride,
                                                          profiles: profiles)
-        if startup != settings.appearanceManualOverride {
-            settings.appearanceManualOverride = startup   // 通知経由で再適用が走る
+        // 「起動時のプロファイル」で id を指定しているときは、毎回それで始める（その日の判定より優先）
+        let next = startupPinsProfile(startup)
+            ? startup
+            : AppearanceResolver.expiredOverride(current: startup,
+                                                 setOn: settings.appearanceManualOverrideDay,
+                                                 today: today)
+        if next != settings.appearanceManualOverride {
+            settings.appearanceManualOverride = next   // 通知経由で再適用が走る
         }
-        Self.logger.info("起動時プロファイル設定: \(self.settings.appearanceStartupProfileID ?? "(前回の状態)", privacy: .public) 手動選択: \(startup ?? "(なし)", privacy: .public)")
+        let day = next == nil ? nil : today
+        if settings.appearanceManualOverrideDay != day {
+            settings.appearanceManualOverrideDay = day
+        }
+        Self.logger.info("起動時プロファイル設定: \(self.settings.appearanceStartupProfileID ?? "(前回の状態)", privacy: .public) 手動選択: \(next ?? "(なし)", privacy: .public)")
+        let decision = todayDecision
+        Self.logger.info("今日: \(decision.reason, privacy: .public) → \(decision.profileID ?? "default（既存ルール）", privacy: .public)")
+        registerDayObservers()
         apply(animated: false)
+    }
+
+    /// 「起動時のプロファイル」でプロファイル id を指定しているか（「前回の状態」「自動」なら false）
+    private func startupPinsProfile(_ startup: String?) -> Bool {
+        guard let configured = settings.appearanceStartupProfileID, !configured.isEmpty,
+              configured != AppearanceResolver.automaticStartupID else { return false }
+        return startup == configured
     }
 
     // MARK: - 解決
@@ -100,7 +245,7 @@ final class AppearanceCoordinator {
     var resolvedProfileID: String {
         AppearanceResolver.resolve(state: settings.appearanceState,
                                    activityMode: settings.activityMode,
-                                   scheduled: nil,   // 将来の時刻ベース切替フック
+                                   scheduled: todayDecision.profileID,   // その日の自動判定（§12.9）
                                    profiles: profiles)
     }
 
@@ -242,6 +387,7 @@ final class AppearanceCoordinator {
                                                                       profiles: profiles)
         if next != settings.appearanceManualOverride {
             Self.logger.info("仕事中モードの切り替えで手動選択を解除しました: \(self.settings.appearanceManualOverride ?? "(なし)", privacy: .public)")
+            if next == nil { settings.appearanceManualOverrideDay = nil }
             settings.appearanceManualOverride = next   // 通知経由で apply が走る
         }
         apply()
@@ -249,12 +395,15 @@ final class AppearanceCoordinator {
 
     // MARK: - メニューからの操作
 
+    /// 手動選択は**その日限り**なので、選んだ日も一緒に控える（日付が変わるか次回起動で自動に戻る）
     func selectProfile(id: String) {
         guard profile(id: id) != nil else { return }
+        settings.appearanceManualOverrideDay = DayProfileResolver.dayKey(for: Date())
         settings.appearanceManualOverride = id
     }
 
     func clearManualOverride() {
+        settings.appearanceManualOverrideDay = nil
         settings.appearanceManualOverride = nil
     }
 

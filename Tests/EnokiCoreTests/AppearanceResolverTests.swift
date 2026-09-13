@@ -106,4 +106,76 @@ final class AppearanceResolverTests: XCTestCase {
                                                           stored: "renofa",
                                                           profiles: profiles), "renofa")
     }
+
+    // MARK: - その日の自動判定（§12.9）を `scheduled` に流し込む
+
+    func testDayDecisionIsWeakerThanManualButStrongerThanActivityMode() {
+        let holidays = JapaneseHolidays()
+        let schedule = RenofaSchedule(matches: [
+            RenofaMatch(date: "2026-11-25", kickoff: "19:00", opponent: "福島ユナイテッドFC", home: true),
+        ])
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let matchDay = calendar.date(from: DateComponents(year: 2026, month: 11, day: 25, hour: 12))!
+        let decision = DayProfileResolver.resolve(date: matchDay, schedule: schedule,
+                                                  holidays: holidays, calendar: calendar)
+        XCTAssertEqual(decision.profileID, "renofa")
+
+        // 仕事中モードより強い（試合日は仕事中でも renofa）
+        XCTAssertEqual(resolve(AppearanceState(manualOverride: nil, autoSwitch: true), .work,
+                               scheduled: decision.profileID), "renofa")
+        // 手動選択より弱い
+        XCTAssertEqual(resolve(AppearanceState(manualOverride: "work", autoSwitch: true), .rest,
+                               scheduled: decision.profileID), "work")
+    }
+
+    // MARK: - 手動選択は「その日限り」
+
+    func testOverrideSurvivesWithinTheSameDay() {
+        XCTAssertEqual(AppearanceResolver.expiredOverride(current: "work",
+                                                          setOn: "2026-09-13",
+                                                          today: "2026-09-13"), "work")
+    }
+
+    func testOverrideExpiresOnAnotherDay() {
+        XCTAssertNil(AppearanceResolver.expiredOverride(current: "work",
+                                                        setOn: "2026-09-12",
+                                                        today: "2026-09-13"))
+        // 日付を控えていない古い設定も解除する
+        XCTAssertNil(AppearanceResolver.expiredOverride(current: "work", setOn: nil, today: "2026-09-13"))
+        // そもそも手動選択が無ければ nil のまま
+        XCTAssertNil(AppearanceResolver.expiredOverride(current: nil, setOn: "2026-09-13", today: "2026-09-13"))
+    }
+
+    /// 日付が変わったあとの再評価（`AppearanceCoordinator.reevaluateDay` の中身を純関数の組み合わせで再現）
+    func testManualOverrideIsReplacedByNextDayDecision() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let holidays = JapaneseHolidays()
+        let schedule = RenofaSchedule(matches: [
+            RenofaMatch(date: "2026-11-25", kickoff: "19:00", opponent: "福島ユナイテッドFC", home: true),
+        ])
+
+        // 前日（11/24 火・平日）に work を手動選択した
+        let yesterday = calendar.date(from: DateComponents(year: 2026, month: 11, day: 24, hour: 22))!
+        let setOn = DayProfileResolver.dayKey(for: yesterday, calendar: calendar)
+        XCTAssertEqual(AppearanceResolver.resolve(state: AppearanceState(manualOverride: "work", autoSwitch: true),
+                                                   activityMode: .rest,
+                                                   scheduled: DayProfileResolver.resolve(date: yesterday, schedule: schedule,
+                                                                                         holidays: holidays, calendar: calendar).profileID,
+                                                   profiles: profiles), "work")
+
+        // 翌日（11/25 水・試合日）になると手動選択は解除され、その日の判定が採用される
+        let today = calendar.date(from: DateComponents(year: 2026, month: 11, day: 25, hour: 9))!
+        let todayKey = DayProfileResolver.dayKey(for: today, calendar: calendar)
+        let override = AppearanceResolver.expiredOverride(current: "work", setOn: setOn, today: todayKey)
+        XCTAssertNil(override)
+
+        let decision = DayProfileResolver.resolve(date: today, schedule: schedule,
+                                                  holidays: holidays, calendar: calendar)
+        XCTAssertEqual(AppearanceResolver.resolve(state: AppearanceState(manualOverride: override, autoSwitch: true),
+                                                   activityMode: .work,
+                                                   scheduled: decision.profileID,
+                                                   profiles: profiles), "renofa")
+    }
 }

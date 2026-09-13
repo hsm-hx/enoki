@@ -175,6 +175,11 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                                 action: nil, keyEquivalent: "")
         header.isEnabled = false
         submenu.addItem(header)
+
+        // その日の自動判定（§12.9）。「今日: 土曜日 → Casual」「今日: レノファ戦 vs ○○ (H) 14:00 → Renofa」
+        let today = NSMenuItem(title: controller.appearanceTodayDescription, action: nil, keyEquivalent: "")
+        today.isEnabled = false
+        submenu.addItem(today)
         submenu.addItem(.separator())
 
         if profiles.isEmpty {
@@ -408,6 +413,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         デスクトップに常駐するマスコットです。
 
         見た目: \(controller.currentAppearanceProfile.displayName)（\(controller.currentAppearanceProfile.id)）\(controller.isAppearanceManuallyOverridden ? " 手動" : " 自動")
+        \(controller.appearanceTodayDescription)
         スプライトセット: \(controller.appearanceSpriteSetDescription)
         スキン: \(controller.skinDisplayName)
         読み込み元: \(abbreviate(controller.skinDirectoryURL?.path ?? "-"))

@@ -34,6 +34,7 @@ public final class AppSettings {
         case workEndHour
         case conversationHistoryData
         case appearanceManualOverride
+        case appearanceManualOverrideDay
         case appearanceAutoSwitch
         case appearanceStartupProfileID
     }
@@ -197,6 +198,19 @@ public final class AppSettings {
             } else {
                 defaults.removeObject(forKey: Key.appearanceManualOverride.rawValue)
                 post(.appearanceManualOverride)
+            }
+        }
+    }
+
+    /// 手動選択した日（yyyy-MM-dd）。手動選択は**その日限り**で、日付が変わると解除される（§12.9）。
+    public var appearanceManualOverrideDay: String? {
+        get { defaults.string(forKey: Key.appearanceManualOverrideDay.rawValue) }
+        set {
+            if let newValue, !newValue.isEmpty {
+                set(newValue, for: .appearanceManualOverrideDay)
+            } else {
+                defaults.removeObject(forKey: Key.appearanceManualOverrideDay.rawValue)
+                post(.appearanceManualOverrideDay)
             }
         }
     }
