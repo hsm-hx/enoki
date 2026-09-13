@@ -14,6 +14,8 @@ protocol ConversationHost: AnyObject {
     var isUserAwayForConversation: Bool { get }
     /// マスコットが非表示
     var isMascotHiddenForConversation: Bool { get }
+    /// 今日がレノファ試合日なら、いまの局面（試合前・試合中・試合後…）。試合日でなければ nil。
+    var currentMatchPhase: MatchPhase? { get }
     /// 行に紐づいた reaction アニメーションを再生する
     func playConversationReaction(named name: String)
 }
@@ -160,7 +162,7 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
         }
         guard !presenter.isPlaying, !isPicking else { return }
 
-        syncScheduler()
+        syncScheduler(now: now)
         let historyBefore = scheduler.history
         let categories = scheduler.evaluate(now: now)
         // quiet 明けの「最終会話時刻」更新など、変化したときだけ保存する
@@ -172,10 +174,30 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
             return
         }
 
-        pick(context: makeContext(now: now,
-                                  allowed: Set(categories),
-                                  trigger: .scheduled),
-             provider: provider)
+        // 優先順（lunch > water > … > ambient）に 1 カテゴリずつ試し、台詞が見つかった最初のものを出す
+        pickInOrder(categories: categories, now: now, provider: provider)
+    }
+
+    private func pickInOrder(categories: [DialogueCategory], now: Date, provider: LocalDialogueProvider) {
+        isPicking = true
+        Task { [weak self] in
+            var found: Conversation?
+            for category in categories {
+                guard let self else { return }
+                let context = self.makeContext(now: now, allowed: [category], trigger: .scheduled)
+                if let conversation = await provider.nextConversation(context: context) {
+                    found = conversation
+                    break
+                }
+            }
+            guard let self else { return }
+            self.isPicking = false
+            guard let found else {
+                Self.logger.debug("条件に合う会話がありませんでした")
+                return
+            }
+            self.present(found)
+        }
     }
 
     // MARK: - 手動
@@ -192,8 +214,11 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
         }
         presenter.cancel()
         isPicking = false
-        // プロファイルが許すぶんだけに絞る（renofa なら「レノファ」の雑談も出る）
-        var allowed = currentProfile.allowedCategories(base: [.ambient, .pair, .renofa])
+        // プロファイルが許すぶんだけに絞る（renofa なら「レノファ」の雑談も出る）。
+        // 試合中に押されたら試合中の台詞が出るよう、いまの局面のカテゴリも混ぜる。
+        var base: Set<DialogueCategory> = [.ambient, .pair, .renofa]
+        if let phaseCategory = host.currentMatchPhase?.dialogueCategory { base.insert(phaseCategory) }
+        var allowed = currentProfile.allowedCategories(base: base)
         if allowed.isEmpty { allowed = [.ambient, .pair] }
         pick(context: makeContext(now: Date(), allowed: allowed, trigger: .manual),
              provider: provider)
@@ -242,13 +267,32 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
 
     // MARK: - 設定の反映
 
-    private func syncScheduler() {
+    private func syncScheduler(now: Date) {
         scheduler.activityMode = settings.activityMode
         scheduler.profile = currentProfile
         scheduler.quietMode = settings.quietMode
         scheduler.workEndHour = settings.workEndHour
-        scheduler.setUserAway(host?.isUserAwayForConversation ?? false, now: Date())
+        scheduler.setUserAway(host?.isUserAwayForConversation ?? false, now: now)
         scheduler.isMascotHidden = !settings.isVisible || (host?.isMascotHiddenForConversation ?? true)
+
+        // 試合日の局面（§12.9）。変わったときだけログに出す。
+        let phase = host?.currentMatchPhase
+        if phase != scheduler.matchPhase {
+            Self.logger.info("試合の局面: \(Self.describe(phase), privacy: .public)")
+        }
+        scheduler.setMatchPhase(phase, now: now)
+    }
+
+    /// ログ用の局面名
+    private static func describe(_ phase: MatchPhase?) -> String {
+        switch phase {
+        case .none:      return "試合日ではない"
+        case .matchDay:  return "試合日（キックオフまで間がある）"
+        case .preMatch:  return "試合前"
+        case .inMatch:   return "試合中"
+        case .postMatch: return "試合後"
+        case .finished:  return "試合後の余韻も終わり"
+        }
     }
 
     /// 仕事中モードが切り替わった

@@ -18,6 +18,8 @@ public final class ConversationScheduler {
         public var encouragementEvery: ClosedRange<TimeInterval> = (70 * 60)...(110 * 60)
         /// 雰囲気・2 人の会話の周期（40〜90 分）
         public var ambientEvery: ClosedRange<TimeInterval> = (40 * 60)...(90 * 60)
+        /// 試合前・試合中・試合後の周期（12〜20 分）。局面の窓が 90〜120 分しか無いので短くしてある。
+        public var matchPhaseEvery: ClosedRange<TimeInterval> = (12 * 60)...(20 * 60)
         /// 休憩・昼食のあと「仕事に戻ろう」と言うまで（10〜15 分）
         public var workReturnDelay: ClosedRange<TimeInterval> = (10 * 60)...(15 * 60)
         /// 昼食の目標時刻のぶれ（12:00 ±20 分）
@@ -34,14 +36,21 @@ public final class ConversationScheduler {
     /// 励ましの窓（13:00〜18:00）
     public static let encouragementWindow = (startHour: 13, endHour: 18)
 
-    /// 優先順位（先頭ほど優先）
-    public static let priority: [DialogueCategory] = [.lunch, .water, .break, .work, .encouragement,
-                                                      .renofa, .renofaPreMatch, .renofaMatch, .renofaPostMatch,
-                                                      .ambient, .pair]
+    /// 優先順位（先頭ほど優先）。
+    /// 試合前・試合中・試合後は窓が短いので最優先にする（逃すとその局面では二度と出せない）。
+    public static let priority: [DialogueCategory] = [.renofaPreMatch, .renofaMatch, .renofaPostMatch,
+                                                      .lunch, .water, .break, .work, .encouragement,
+                                                      .renofa, .ambient, .pair]
 
     /// ambient と同じ周期（40〜90 分）で回るカテゴリ。基準時刻も共有する。
-    public static let ambientPaced: Set<DialogueCategory> = [.ambient, .pair, .renofa,
-                                                             .renofaPreMatch, .renofaMatch, .renofaPostMatch]
+    public static let ambientPaced: Set<DialogueCategory> = [.ambient, .pair, .renofa]
+
+    /// 局面（試合前・試合中・試合後）の周期で回るカテゴリ。基準時刻を共有し、全体の最低間隔を免除される。
+    public static let matchPhasePaced: Set<DialogueCategory> = [.renofaPreMatch, .renofaMatch, .renofaPostMatch]
+
+    /// 試合日だけ使うカテゴリ（現在の局面のぶん以外は候補から外す）
+    public static let renofaCategories: Set<DialogueCategory> = [.renofa, .renofaPreMatch,
+                                                                 .renofaMatch, .renofaPostMatch]
 
     // MARK: - 設定
 
@@ -58,6 +67,11 @@ public final class ConversationScheduler {
     private var awaySince: Date?
     /// マスコットが非表示
     public var isMascotHidden = false
+
+    /// いまがレノファ試合日のどの局面か（nil = 試合日ではない）。`setMatchPhase(_:now:)` で更新する。
+    public private(set) var matchPhase: MatchPhase?
+    /// いまの局面に入った時刻（局面のカテゴリをまだ 1 度も話していないときの基準）
+    private var phaseEnteredAt: Date?
 
     /// テスト用に差し替え可能な乱数
     public var randomInterval: (ClosedRange<TimeInterval>) -> TimeInterval = { range in
@@ -116,6 +130,14 @@ public final class ConversationScheduler {
         }
     }
 
+    /// 試合日の局面を更新する（変わったときだけ「局面に入った時刻」を控える）
+    public func setMatchPhase(_ phase: MatchPhase?, now: Date) {
+        guard phase != matchPhase else { return }
+        matchPhase = phase
+        phaseEnteredAt = now
+        targets.removeValue(forKey: "matchPhase")
+    }
+
     public func replaceHistory(_ history: ConversationHistory) {
         self.history = history
         targets.removeAll()
@@ -137,23 +159,31 @@ public final class ConversationScheduler {
         }
         guard !isMascotHidden, !isUserAway else { return [] }
 
-        // 全体の最低間隔
+        // 全体の最低間隔。試合前・試合中・試合後だけは免除する（局面の窓が 90〜120 分しか無いため）。
         let globalBasis = history.lastConversationAt ?? sessionStart
         let gap = target("global", basis: globalBasis, range: intervals.globalGap)
-        guard now >= globalBasis.addingTimeInterval(gap) else { return [] }
+        let isGlobalGapOver = now >= globalBasis.addingTimeInterval(gap)
 
         let allowed = allowedCategories
         return Self.priority.filter { category in
             allowed.contains(category)
-                && category != history.lastCategory
+                && (isGlobalGapOver || Self.matchPhasePaced.contains(category))
+                // 直前と同じカテゴリは避ける。ただし試合前・試合中・試合後は同じ局面の台詞を続けてよい
+                && (category != history.lastCategory || Self.matchPhasePaced.contains(category))
                 && isDue(category, now: now)
         }
     }
 
-    /// 仕事中モードと見た目プロファイルが許すカテゴリ
+    /// 仕事中モードと見た目プロファイルが許すカテゴリ。
+    /// renofa 系は、さらに「いまの局面のカテゴリ 1 つ」だけに絞る
+    /// （試合日でない = `matchPhase == nil` と `.finished` では 4 つとも外れる）。
     public var allowedCategories: Set<DialogueCategory> {
         let base = activityMode.scheduledCategories
-        return profile?.allowedCategories(base: base) ?? base
+        var result = profile?.allowedCategories(base: base) ?? base
+        var dropped = Self.renofaCategories
+        if let category = matchPhase?.dialogueCategory { dropped.remove(category) }
+        result.subtract(dropped)
+        return result
     }
 
     /// そのカテゴリの条件が満たされているか
@@ -174,9 +204,14 @@ public final class ConversationScheduler {
             guard hour >= Self.encouragementWindow.startHour, hour < Self.encouragementWindow.endHour else { return false }
             let basis = history.lastShown(of: .encouragement) ?? sessionStart
             return now >= basis.addingTimeInterval(target("encouragement", basis: basis, range: intervals.encouragementEvery))
-        case .ambient, .pair, .renofa, .renofaPreMatch, .renofaMatch, .renofaPostMatch:
+        case .ambient, .pair, .renofa:
             let basis = latest(Self.ambientPaced.map { history.lastShown(of: $0) }) ?? sessionStart
             return now >= basis.addingTimeInterval(target("ambient", basis: basis, range: intervals.ambientEvery))
+        case .renofaPreMatch, .renofaMatch, .renofaPostMatch:
+            // 基準は「試合前・試合中・試合後の最終再生時刻」。まだ無ければ、その局面に入った時刻。
+            let basis = latest(Self.matchPhasePaced.map { history.lastShown(of: $0) })
+                ?? phaseEnteredAt ?? sessionStart
+            return now >= basis.addingTimeInterval(target("matchPhase", basis: basis, range: intervals.matchPhaseEvery))
         }
     }
 

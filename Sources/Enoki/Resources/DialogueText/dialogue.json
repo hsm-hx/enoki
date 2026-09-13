@@ -766,6 +766,650 @@
           "text": "僕は隣で静かに見てるよ"
         }
       ]
+    },
+    {
+      "id": "renofa_md_001",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "今日、レノファあるんだ。ひいらぎ、見る？"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_002",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "今日は試合の日だね。まだ時間あるけど、ちょっと楽しみ"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_003",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "タオル、出しておいた。まだ使わないけど"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_004",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "試合がある日って、朝から少しだけ特別な感じするね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_005",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "始まるまでは、いつも通り過ごそうか"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_006",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "今日はレノファの試合がありますね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_007",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "まだ試合までは時間があります。のんびり待ちましょう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_008",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さく、朝からタオルを出していましたよ"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_009",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "試合の日なので、今日は少しだけ特別な格好です"
+        }
+      ]
+    },
+    {
+      "id": "renofa_md_010",
+      "category": "renofa",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎが見るなら、わたしたちも一緒に応援します"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_001",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "そろそろだね。なんか落ち着かなくなってきた"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_002",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、もう見る準備した？"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_003",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "今日は勝ちたいね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_004",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "タオル、持ってきた。準備できてるよ"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_005",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "あとちょっとか。始まる前って長く感じるな"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_006",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "栞もさっきから、ちょっとそわそわしてる"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_007",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "そろそろ試合の時間が近づいてきましたね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_008",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "飲み物などは用意しましたか。始まる前に準備しておきましょう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_009",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "試合前は、どうしても少し落ち着かなくなりますね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_010",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さくはもう完全に応援する準備ができているみたいです"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_011",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "今日はどんな試合になりますかね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_pre_012",
+      "category": "renofa_pre_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎ、一緒に見ましょう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_001",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "始まってるね。応援しよう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_002",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "いける、いける"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_003",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "まだあるよ"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_004",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "なんか僕まで緊張してきた"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_005",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎ、ちゃんと見てる？"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_006",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "最後まで応援しよう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_007",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "試合中ですね。わたしも少し落ち着きません"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_008",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "さく、さっきから画面の前をうろうろしています"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_009",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "まだ試合は続いています。応援しましょう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_010",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "こういう時間は、いつもより時計を見る回数が増えますね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_011",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "わたしもフラッグを持ってきました"
+        }
+      ]
+    },
+    {
+      "id": "renofa_in_012",
+      "category": "renofa_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "ひいらぎと一緒に見ていると、わたしたちも試合の日を過ごしている感じがします"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_001",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "終わったー。ひいらぎ、どうだった？"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_002",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "試合の日って、終わると急に静かになるね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_003",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "タオル、そろそろ片付けるか……"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_004",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "今日はここまでだね。おつかれさま"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_005",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "ひいらぎが楽しかったなら、僕も嬉しい"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_006",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "saku",
+          "text": "また次の試合も、一緒に見よう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_007",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "試合、終わりましたね"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_008",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "お疲れさまでした。ひいらぎはどうでしたか"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_009",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "今日はここまでですね。少し休みましょう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_010",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "試合が終わると、部屋まで少し静かになったように感じます"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_011",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "応援用のものは片付けておきます。また次の試合で使いましょう"
+        }
+      ]
+    },
+    {
+      "id": "renofa_post_012",
+      "category": "renofa_post_match",
+      "cooldown": 10800,
+      "profiles": [
+        "renofa"
+      ],
+      "lines": [
+        {
+          "speaker": "shiori",
+          "text": "今日も一緒に試合の日を過ごせましたね"
+        }
+      ]
     }
   ]
 }

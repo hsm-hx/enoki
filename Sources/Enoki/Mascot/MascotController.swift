@@ -557,6 +557,9 @@ final class MascotController: NSObject, MascotViewDelegate, ConversationHost, Ap
         return machine?.state.isHidden ?? true
     }
 
+    /// 今日がレノファ試合日なら、いまの局面（試合日程とキックオフ時刻だけで決まる。§12.9）
+    var currentMatchPhase: MatchPhase? { appearance?.matchPhase(at: Date()) }
+
     /// 台詞に紐づいた reaction アニメーション（スキンに無ければ何もしない）
     func playConversationReaction(named name: String) {
         guard let machine, let skin, skin.animation(named: name) != nil else { return }

@@ -99,6 +99,66 @@ final class RenofaScheduleTests: XCTestCase {
         XCTAssertEqual(schedule.match(on: date(2026, 9, 20), calendar: calendar)?.homeAwayLabel, "A")
     }
 
+    // MARK: - 局面（試合前・試合中・試合後）
+
+    private func dateTime(_ hour: Int, _ minute: Int, day: Int = 20) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 9, day: day, hour: hour, minute: minute))!
+    }
+
+    /// 2026-09-20 13:00 キックオフ
+    private var kickoffMatch: RenofaMatch {
+        RenofaMatch(date: "2026-09-20", kickoff: "13:00", opponent: "ツエーゲン金沢", home: false, competition: "J3")
+    }
+
+    func testPhaseBoundaries() {
+        let match = kickoffMatch
+        func phase(_ hour: Int, _ minute: Int) -> MatchPhase {
+            match.phase(at: dateTime(hour, minute), calendar: calendar)
+        }
+        XCTAssertEqual(phase(0, 0), .matchDay)
+        XCTAssertEqual(phase(11, 29), .matchDay)
+        XCTAssertEqual(phase(11, 30), .preMatch)    // キックオフ 90 分前ちょうど
+        XCTAssertEqual(phase(12, 59), .preMatch)
+        XCTAssertEqual(phase(13, 0), .inMatch)      // キックオフちょうど
+        XCTAssertEqual(phase(14, 59), .inMatch)
+        XCTAssertEqual(phase(15, 0), .postMatch)    // +120 分ちょうど
+        XCTAssertEqual(phase(16, 59), .postMatch)
+        XCTAssertEqual(phase(17, 0), .finished)     // +240 分ちょうど
+        XCTAssertEqual(phase(23, 59), .finished)
+    }
+
+    func testPhaseWithoutKickoffIsMatchDayAllDay() {
+        let match = RenofaMatch(date: "2026-09-20", opponent: "ツエーゲン金沢", home: false)
+        for hour in 0..<24 {
+            XCTAssertEqual(match.phase(at: dateTime(hour, 30), calendar: calendar), .matchDay, "\(hour) 時")
+        }
+    }
+
+    func testPhaseWindowsAreConfigurable() {
+        let match = kickoffMatch
+        let windows = MatchPhaseWindows(preMatchLead: 30 * 60, matchDuration: 60 * 60, postMatchLength: 30 * 60)
+        XCTAssertEqual(match.phase(at: dateTime(12, 0), windows: windows, calendar: calendar), .matchDay)
+        XCTAssertEqual(match.phase(at: dateTime(12, 30), windows: windows, calendar: calendar), .preMatch)
+        XCTAssertEqual(match.phase(at: dateTime(13, 30), windows: windows, calendar: calendar), .inMatch)
+        XCTAssertEqual(match.phase(at: dateTime(14, 0), windows: windows, calendar: calendar), .postMatch)
+        XCTAssertEqual(match.phase(at: dateTime(14, 30), windows: windows, calendar: calendar), .finished)
+    }
+
+    func testSchedulePhaseIsNilOnNonMatchDay() {
+        let schedule = RenofaSchedule(matches: [kickoffMatch])
+        XCTAssertEqual(schedule.phase(at: dateTime(13, 30), calendar: calendar), .inMatch)
+        XCTAssertNil(schedule.phase(at: dateTime(13, 30, day: 21), calendar: calendar), "試合日でない日は nil")
+        XCTAssertNil(RenofaSchedule.empty.phase(at: dateTime(13, 30), calendar: calendar))
+    }
+
+    func testPhaseDialogueCategory() {
+        XCTAssertEqual(MatchPhase.matchDay.dialogueCategory, .renofa)
+        XCTAssertEqual(MatchPhase.preMatch.dialogueCategory, .renofaPreMatch)
+        XCTAssertEqual(MatchPhase.inMatch.dialogueCategory, .renofaMatch)
+        XCTAssertEqual(MatchPhase.postMatch.dialogueCategory, .renofaPostMatch)
+        XCTAssertNil(MatchPhase.finished.dialogueCategory)
+    }
+
     func testKickoffDate() {
         let match = RenofaMatch(date: "2026-09-20", kickoff: "13:00", opponent: "ツエーゲン金沢", home: false)
         XCTAssertEqual(match.kickoffDate(calendar: calendar),

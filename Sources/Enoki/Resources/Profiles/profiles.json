@@ -33,6 +33,9 @@
       "spriteSet": "saku_shiori_renofa",
       "dialogueCategories": [
         "renofa",
+        "renofa_pre_match",
+        "renofa_match",
+        "renofa_post_match",
         "ambient",
         "pair",
         "encouragement"

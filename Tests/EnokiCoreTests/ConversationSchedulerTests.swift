@@ -146,7 +146,8 @@ final class ConversationSchedulerTests: XCTestCase {
 
     private var renofaProfile: AppearanceProfile {
         AppearanceProfile(id: "renofa", displayName: "Renofa", spriteSet: "saku_shiori_renofa",
-                          dialogueCategories: ["renofa", "ambient", "pair", "encouragement"],
+                          dialogueCategories: ["renofa", "renofa_pre_match", "renofa_match", "renofa_post_match",
+                                               "ambient", "pair", "encouragement"],
                           disabledDialogueCategories: ["work"],
                           special: true)
     }
@@ -166,6 +167,8 @@ final class ConversationSchedulerTests: XCTestCase {
     func testRenofaProfileAllowsRenofaCategory() {
         let scheduler = makeScheduler()
         scheduler.profile = renofaProfile
+        // 試合日（キックオフまで間がある）の局面
+        scheduler.setMatchPhase(.matchDay, now: date(9))
         XCTAssertEqual(scheduler.allowedCategories, [.renofa, .ambient, .pair, .encouragement])
         // renofa は ambient と同じ周期・ambient の直前の優先順位
         XCTAssertEqual(scheduler.evaluate(now: date(9, 55)), [.renofa, .ambient, .pair])
@@ -175,10 +178,20 @@ final class ConversationSchedulerTests: XCTestCase {
         XCTAssertEqual(scheduler.evaluate(now: date(10, 40)), [.ambient, .pair])
     }
 
+    /// 試合日でなければ renofa 系は 1 つも候補にならない
+    func testRenofaProfileWithoutMatchDayDropsRenofaCategories() {
+        let scheduler = makeScheduler()
+        scheduler.profile = renofaProfile
+        XCTAssertEqual(scheduler.allowedCategories, [.ambient, .pair, .encouragement])
+        XCTAssertEqual(scheduler.evaluate(now: date(9, 55)), [.ambient, .pair])
+    }
+
     func testProfileWithoutRestrictionKeepsActivityMode() {
         let scheduler = makeScheduler()
         scheduler.profile = AppearanceProfile(id: "default", displayName: "Default")
-        XCTAssertEqual(scheduler.allowedCategories, Set(DialogueCategory.allCases))
+        // 試合日でないので renofa 系（4 つ）は落ちる
+        XCTAssertEqual(scheduler.allowedCategories,
+                       Set(DialogueCategory.allCases).subtracting(ConversationScheduler.renofaCategories))
     }
 
     func testAmbientAndPairAlternate() {
@@ -186,6 +199,87 @@ final class ConversationSchedulerTests: XCTestCase {
         scheduler.record(conversation(.ambient), at: date(9, 40))
         XCTAssertEqual(scheduler.evaluate(now: date(10, 0)), [])          // 40 分の周期に届かない
         XCTAssertEqual(core(scheduler.evaluate(now: date(10, 20))), [.pair])   // 直前の ambient は避ける
+    }
+
+    // MARK: - 試合日の局面（§12.9）
+
+    /// 局面ごとに許可される renofa 系カテゴリはちょうど 1 つ
+    func testMatchPhaseAllowsExactlyOneRenofaCategory() {
+        let scheduler = makeScheduler()
+        scheduler.profile = renofaProfile
+        let expected: [(MatchPhase, DialogueCategory)] = [(.matchDay, .renofa), (.preMatch, .renofaPreMatch),
+                                                          (.inMatch, .renofaMatch), (.postMatch, .renofaPostMatch)]
+        for (phase, category) in expected {
+            scheduler.setMatchPhase(phase, now: date(9))
+            let renofaAllowed = scheduler.allowedCategories.intersection(ConversationScheduler.renofaCategories)
+            XCTAssertEqual(renofaAllowed, [category], "\(category.rawValue) だけが残ること")
+        }
+    }
+
+    func testFinishedAndNilPhaseDropAllRenofaCategories() {
+        let scheduler = makeScheduler()
+        scheduler.profile = renofaProfile
+        scheduler.setMatchPhase(.finished, now: date(9))
+        XCTAssertTrue(scheduler.allowedCategories.isDisjoint(with: ConversationScheduler.renofaCategories))
+        XCTAssertEqual(scheduler.evaluate(now: date(17, 30)).filter { ConversationScheduler.renofaCategories.contains($0) }, [])
+
+        scheduler.setMatchPhase(nil, now: date(18))
+        XCTAssertTrue(scheduler.allowedCategories.isDisjoint(with: ConversationScheduler.renofaCategories))
+    }
+
+    /// 試合前は全体の最低間隔（20 分）を免除され、12 分周期で出る
+    func testPreMatchIgnoresGlobalGapAndUsesItsOwnInterval() {
+        let scheduler = makeScheduler()
+        scheduler.profile = renofaProfile
+        scheduler.setMatchPhase(.preMatch, now: date(11, 30))
+
+        // 直前に別の会話を出した（= 全体の最低間隔の途中）
+        scheduler.record(conversation(.ambient), at: date(11, 30))
+        XCTAssertEqual(scheduler.evaluate(now: date(11, 40)), [], "局面に入って 12 分経っていない")
+        XCTAssertEqual(scheduler.evaluate(now: date(11, 42)), [.renofaPreMatch], "最低間隔 20 分の途中でも出る")
+
+        // 出した直後でも、局面カテゴリは「直前と同じカテゴリ」の回避を免除され、12 分周期で続けて出る
+        scheduler.record(conversation(.renofaPreMatch), at: date(11, 42))
+        XCTAssertEqual(scheduler.evaluate(now: date(11, 52)), [], "11:42 から 12 分経っていない")
+        XCTAssertEqual(scheduler.evaluate(now: date(11, 54)), [.renofaPreMatch])
+    }
+
+    /// 試合前・試合中・試合後は最優先（lunch より前）
+    func testMatchPhaseCategoriesComeFirst() {
+        let scheduler = makeScheduler()
+        scheduler.profile = AppearanceProfile(id: "default", displayName: "Default")
+        scheduler.setMatchPhase(.inMatch, now: date(11, 30))
+        let categories = scheduler.evaluate(now: date(11, 45))   // 昼食も出せる時刻
+        XCTAssertEqual(categories.first, .renofaMatch)
+        XCTAssertTrue(categories.contains(.lunch))
+        XCTAssertEqual(ConversationScheduler.priority.prefix(3),
+                       [.renofaPreMatch, .renofaMatch, .renofaPostMatch])
+    }
+
+    /// 局面が変わったら、その場でもう一度話してよい（基準は 3 カテゴリの最終再生時刻）
+    func testPhaseChangeMakesNewCategoryDueImmediately() {
+        let scheduler = makeScheduler()
+        scheduler.profile = renofaProfile
+        scheduler.setMatchPhase(.preMatch, now: date(11, 30))
+        scheduler.record(conversation(.renofaPreMatch), at: date(12, 50))
+        XCTAssertEqual(scheduler.evaluate(now: date(12, 55)), [])
+
+        scheduler.setMatchPhase(.inMatch, now: date(13, 0))
+        XCTAssertEqual(scheduler.evaluate(now: date(13, 2)), [.renofaMatch])
+    }
+
+    /// plain renofa は従来どおり ambient の周期（40 分）で、最低間隔も効く
+    func testPlainRenofaKeepsAmbientPacing() {
+        let scheduler = makeScheduler()
+        scheduler.profile = renofaProfile
+        scheduler.setMatchPhase(.matchDay, now: date(9))
+        XCTAssertEqual(scheduler.evaluate(now: date(9, 30)), [], "ambient 周期の 40 分に届かない")
+        XCTAssertEqual(scheduler.evaluate(now: date(9, 40)), [.renofa, .ambient, .pair])
+
+        // ambient を出すと renofa の基準も一緒に動く（基準時刻を共有している）
+        scheduler.record(conversation(.ambient), at: date(9, 40))
+        XCTAssertEqual(scheduler.evaluate(now: date(10, 10)), [])
+        XCTAssertEqual(scheduler.evaluate(now: date(10, 20)), [.renofa, .pair])
     }
 
     // MARK: - 履歴
@@ -233,5 +327,21 @@ final class ConversationSchedulerTests: XCTestCase {
         scheduler.setUserAway(false, now: date(9, 45))   // 5 分 < 10 分
         XCTAssertEqual(scheduler.sessionStart, date(9))
         XCTAssertTrue(scheduler.evaluate(now: date(9, 51)).contains(.break), "セッションは継続、9:00 から 50 分で休憩")
+    }
+
+    // MARK: - 局面カテゴリは連続して出てよい
+
+    func testMatchPhaseCategoryMayRepeatWithoutAnotherCategoryInBetween() {
+        let scheduler = makeScheduler(start: date(9))
+        scheduler.profile = renofaProfile
+        scheduler.setMatchPhase(.preMatch, now: date(12))
+        scheduler.record(conversation(.renofaPreMatch), at: date(12, 1))
+        XCTAssertFalse(scheduler.evaluate(now: date(12, 5)).contains(.renofaPreMatch), "12 分の周期が来るまでは出ない")
+        XCTAssertTrue(scheduler.evaluate(now: date(12, 14)).contains(.renofaPreMatch),
+                      "直前も試合前の台詞だったが、局面カテゴリは同じカテゴリの回避を免除される")
+        // 通常のカテゴリは従来どおり直前と同じなら避ける
+        scheduler.setMatchPhase(nil, now: date(13))
+        scheduler.record(conversation(.ambient), at: date(13))
+        XCTAssertFalse(scheduler.evaluate(now: date(14, 30)).contains(.ambient))
     }
 }

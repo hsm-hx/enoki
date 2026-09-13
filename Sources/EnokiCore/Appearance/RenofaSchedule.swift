@@ -1,5 +1,52 @@
 import Foundation
 
+/// 試合日の「いまどの局面か」。
+///
+/// キックオフ時刻が分かっている試合だけ細かく分かれます（不明なら終日 `.matchDay`）。
+/// **試合結果（勝ち負け・得点）は見ません。** アプリはネットワークに一切アクセスしないので、
+/// 「どちらが勝ったか」を知る手段がなく、台詞も結果に踏み込まない書き方にしてあります。
+public enum MatchPhase: Equatable, Sendable {
+    /// 試合の日だが、まだキックオフまで間がある（またはキックオフ時刻が不明）
+    case matchDay
+    /// キックオフ直前
+    case preMatch
+    /// 試合中
+    case inMatch
+    /// 試合直後
+    case postMatch
+    /// 試合後の余韻も過ぎた（この日はもう試合の話をしない）
+    case finished
+
+    /// この局面で話してよい renofa 系カテゴリ（`.finished` は nil = どれも話さない）
+    public var dialogueCategory: DialogueCategory? {
+        switch self {
+        case .matchDay:  return .renofa
+        case .preMatch:  return .renofaPreMatch
+        case .inMatch:   return .renofaMatch
+        case .postMatch: return .renofaPostMatch
+        case .finished:  return nil
+        }
+    }
+}
+
+/// 局面の窓の長さ。キックオフ時刻を中心に前後の幅だけを決める（値を変えれば局面の切り替わりも変わる）。
+public struct MatchPhaseWindows: Equatable, Sendable {
+    /// キックオフの何秒前から `.preMatch` にするか（既定 90 分）
+    public var preMatchLead: TimeInterval
+    /// キックオフから何秒を `.inMatch` とみなすか（既定 120 分。前後半 + ハーフタイム + ロスタイムの目安）
+    public var matchDuration: TimeInterval
+    /// 試合終了の見込み時刻から何秒を `.postMatch` にするか（既定 120 分）
+    public var postMatchLength: TimeInterval
+
+    public init(preMatchLead: TimeInterval = 90 * 60,
+                matchDuration: TimeInterval = 120 * 60,
+                postMatchLength: TimeInterval = 120 * 60) {
+        self.preMatchLead = preMatchLead
+        self.matchDuration = matchDuration
+        self.postMatchLength = postMatchLength
+    }
+}
+
 /// 1 試合
 public struct RenofaMatch: Codable, Equatable, Sendable {
     /// yyyy-MM-dd（ローカル暦の日付）
@@ -34,7 +81,7 @@ public struct RenofaMatch: Codable, Equatable, Sendable {
     public var homeAwayLabel: String { home ? "H" : "A" }
 
     /// キックオフの時刻（`kickoff` が無ければ nil）。
-    /// **いまの判定では使っていません**。将来「試合前／試合中／試合後」で台詞や見た目を変えるための入口です。
+    /// 「試合前／試合中／試合後」の判定（`phase(at:windows:calendar:)`）の基準になります。
     public func kickoffDate(calendar: Calendar = .current) -> Date? {
         guard let day = JapaneseHolidays.parseDayKey(date),
               let kickoff, let time = Self.parseTime(kickoff) else { return nil }
@@ -45,6 +92,26 @@ public struct RenofaMatch: Codable, Equatable, Sendable {
         components.hour = time.hour
         components.minute = time.minute
         return calendar.date(from: components)
+    }
+
+    /// この試合の、その時刻での局面。
+    ///
+    /// - キックオフ不明: 終日 `.matchDay`
+    /// - `[00:00, kickoff-90分)` → `.matchDay` / `[kickoff-90分, kickoff)` → `.preMatch`
+    /// - `[kickoff, kickoff+120分)` → `.inMatch` / `[kickoff+120分, kickoff+240分)` → `.postMatch`
+    /// - それ以降 → `.finished`
+    ///
+    /// 窓の長さは `MatchPhaseWindows` で変えられます。
+    public func phase(at date: Date,
+                      windows: MatchPhaseWindows = MatchPhaseWindows(),
+                      calendar: Calendar = .current) -> MatchPhase {
+        guard let kickoff = kickoffDate(calendar: calendar) else { return .matchDay }
+        if date < kickoff.addingTimeInterval(-windows.preMatchLead) { return .matchDay }
+        if date < kickoff { return .preMatch }
+        let end = kickoff.addingTimeInterval(windows.matchDuration)
+        if date < end { return .inMatch }
+        if date < end.addingTimeInterval(windows.postMatchLength) { return .postMatch }
+        return .finished
     }
 
     static func parseTime(_ value: String) -> (hour: Int, minute: Int)? {
@@ -106,6 +173,13 @@ public struct RenofaSchedule: Codable, Equatable, Sendable {
     public func match(on date: Date, calendar: Calendar = .current) -> RenofaMatch? {
         let key = DayProfileResolver.dayKey(for: date, calendar: calendar)
         return matches.first { $0.date == key }
+    }
+
+    /// その時刻の局面（その日に試合が無ければ nil）
+    public func phase(at date: Date,
+                      windows: MatchPhaseWindows = MatchPhaseWindows(),
+                      calendar: Calendar = .current) -> MatchPhase? {
+        match(on: date, calendar: calendar)?.phase(at: date, windows: windows, calendar: calendar)
     }
 }
 

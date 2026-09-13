@@ -16,8 +16,8 @@ final class DialogueLoaderTests: XCTestCase {
         let result = try DialogueLoader.load(url: bundledDialogueURL)
         XCTAssertEqual(result.issues, [], "同梱の台詞ファイルに壊れた会話があります")
         XCTAssertEqual(result.set.schemaVersion, 1)
-        // 42（共通）+ 4（casual 専用）+ 4（renofa 専用）
-        XCTAssertEqual(result.set.conversations.count, 50)
+        // 42（共通）+ 4（casual 専用）+ 50（renofa 専用）
+        XCTAssertEqual(result.set.conversations.count, 96)
     }
 
     func testBundledDialogueHasSixCommonConversationsPerCategory() throws {
@@ -42,9 +42,16 @@ final class DialogueLoaderTests: XCTestCase {
         XCTAssertFalse(casual.contains { $0.matches(profileID: AppearanceProfile.ID.default) })
 
         let renofa = result.set.conversations.filter { $0.profiles == ["renofa"] }
-        XCTAssertEqual(renofa.count, 4)
-        XCTAssertTrue(renofa.allSatisfy { $0.category == .renofa })
+        XCTAssertEqual(renofa.count, 50)
+        XCTAssertTrue(renofa.allSatisfy { ConversationScheduler.renofaCategories.contains($0.category) })
         XCTAssertTrue(renofa.allSatisfy { $0.matches(profileID: "renofa") })
+        XCTAssertFalse(renofa.contains { $0.matches(profileID: AppearanceProfile.ID.default) })
+
+        // 局面ごとの台詞（§11.3）。すべて renofa プロファイル限定。
+        for (category, count) in [(DialogueCategory.renofa, 14), (.renofaPreMatch, 12),
+                                  (.renofaMatch, 12), (.renofaPostMatch, 12)] {
+            XCTAssertEqual(renofa.filter { $0.category == category }.count, count, "\(category.rawValue) の件数")
+        }
 
         // profiles の無い会話はどのプロファイルでも使える
         let common = try XCTUnwrap(result.set.conversation(id: "ambient_001"))

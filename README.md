@@ -491,9 +491,11 @@ make clean
   `default` / `work` はベーススキン（通常衣装）、`renofa` は素材を置かなければ
   **ベーススキンにフォールバック**して動きます（見た目は変わらず、台詞のカテゴリ制限だけが効きます）。
   素材の置き方は §12.3。
-- **その日の自動判定は「日」単位**です（§12.9）。曜日・祝日・レノファの試合日までは見ますが、
-  **キックオフ時刻に合わせた切り替え（試合前／試合中／試合後）は未実装**です。
-  入口（`RenofaMatch.kickoffDate`）だけ用意してあります。
+- **見た目（プロファイル）の自動判定は「日」単位**です（§12.9）。曜日・祝日・レノファの試合日までは見ますが、
+  キックオフ時刻で**着替える**ことはありません。**台詞だけ**はキックオフ時刻に連動し、
+  試合前／試合中／試合後で使うカテゴリが変わります（§11.3・§12.9）。
+- **試合結果（勝ち負け・得点）は見ません。** アプリは通信しないので知る手段がなく、
+  試合後の台詞も結果に踏み込まない書き方にしてあります。
 - **試合日程と祝日データは同梱の JSON** です（アプリは通信しません）。
   祝日は内閣府が翌年分までしか公開しないので、年に一度 `scripts/update_holidays.py` で更新します。
   データに無い年は現行ルールの計算で補うため、一過性の特例（五輪年の移動など）は合いません（§12.9）。
@@ -554,7 +556,7 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 
 1. **いま表示中のスキンフォルダの `dialogue.json`**（例: `~/.codex/pets/sakushio_pet/dialogue.json`）。
    見た目プロファイルでスプライトセットに切り替わっているときは、そのフォルダを見ます（§12.5）。
-2. アプリ内蔵の `Resources/DialogueText/dialogue.json`（50 会話）
+2. アプリ内蔵の `Resources/DialogueText/dialogue.json`（96 会話）
 
 読み込みに失敗した場合は**会話機能だけ**が無効になります（マスコットは普通に動きます）。
 
@@ -588,6 +590,18 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 | `dialogues[].lines[].text` | String | **必須** | 1 発言。目安 30 文字程度（最大 3 行、超えると末尾省略）。 |
 | `dialogues[].lines[].reaction` | String? | `null` | その発言に合わせて再生するアニメーション名（スキンに無ければ無視）。 |
 
+レノファ（試合日）用の 4 カテゴリは、その日のキックオフ時刻で自動的に出し分けます（§11.3）:
+
+| カテゴリ | いつ使うか |
+|---|---|
+| `renofa` | 試合の日だが、まだキックオフまで間があるとき（キックオフ時刻が不明な試合は終日これ） |
+| `renofa_pre_match` | キックオフ **90 分前**から、キックオフまで |
+| `renofa_match` | キックオフから **120 分**（試合中） |
+| `renofa_post_match` | 試合終了の見込みから **120 分**（試合直後の余韻） |
+
+それ以降（キックオフ + 240 分〜）は 4 つとも使いません。**試合結果は見ない**ので、
+試合後の台詞は勝ち負けに踏み込まない書き方にしてあります。
+
 - **未知のキーは無視します。**
 - `lines` が空 / `speaker` が不明 / `category` が不明 / `id` が重複 のときは
   **その会話だけを捨てて** 残りを読み込みます（ファイル全体は失敗させません）。
@@ -599,7 +613,7 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 `ConversationCoordinator` が 60 秒ごとに `evaluate(now:)` を呼び、返ってきた
 カテゴリ候補（**優先順**）を `allowedCategories` として Provider に渡します。空なら黙ります。
 
-優先順: **lunch > water > break > work > encouragement > renofa 系 > ambient / pair**
+優先順: **renofa 試合前/試合中/試合後 > lunch > water > break > work > encouragement > renofa > ambient / pair**
 
 | ルール | 条件 |
 |---|---|
@@ -610,9 +624,16 @@ Sources/Enoki/Dialogue/            AppKit（すべて @MainActor）
 | `encouragement` | **13:00〜18:00**。前回から **90 分 ±20 分** |
 | `work`（仕事に戻る） | break か lunch を出してから **10〜15 分後に 1 回だけ** |
 | `ambient` / `pair` | どちらかを **40〜90 分ごと**。work モードでは優先順位が最後なので頻度は低い。 |
-| `renofa` 系 | `ambient` と同じ周期（基準時刻も共有）。優先順位は `ambient` の直前。プロファイルが許可したときだけ候補に入る（§12.5）。 |
+| `renofa` | `ambient` と同じ周期（**40〜90 分**、基準時刻も共有）。優先順位は `ambient` の直前。 |
+| `renofa_pre_match` / `renofa_match` / `renofa_post_match` | **12〜20 分ごと**（`Intervals.matchPhaseEvery`）。基準はこの 3 カテゴリの最終再生時刻で、まだ無ければその局面に入った時刻。**全体の最低間隔（20 分 + 0〜15 分）は免除**され、優先順位も最優先。 |
 
-- **直前に出したカテゴリはスキップ**します。
+renofa 系はプロファイルが許可したときだけ候補に入り（§12.5）、さらに
+**その日のいまの局面のカテゴリ 1 つだけ**に絞られます（`ConversationScheduler.setMatchPhase(_:now:)`）。
+試合日でない日と「試合後の余韻も過ぎた（`.finished`）」あとは 4 つとも候補から外れます。
+
+- **直前に出したカテゴリはスキップ**します（試合前・試合中・試合後も同じ。連続しては出ません）。
+- 試合前・試合中・試合後だけ全体の最低間隔を免除しているのは、局面の窓が **90〜120 分しか無い**ためです
+  （20 分 + 0〜15 分待っていると、その局面で一度も話せないことがある）。
 - 次のときは常に空（＝黙る）を返します: **quiet 中 / 離席中（マスコットがスリープ状態）/ 非表示中**。
 - **quiet 明けに一斉に話しません。** quiet が解けた最初の tick で「最終会話時刻」を
   解除時刻に更新するので、そこからまた最低間隔を数え直します。
@@ -666,8 +687,9 @@ LLM 版を足す手順:
 - アプリを組み直さずに差し替えるなら、**使用中スキンのフォルダに `dialogue.json` を置きます**
   （例: `~/.codex/pets/sakushio_pet/dialogue.json`）。こちらが内蔵より優先されます。
   メニューの「スキン > 再読み込み」で台詞も読み直します。
-- 同梱ファイルの内容は `DialogueLoaderTests` が検証しています（全 50 会話。プロファイル共通は
-  42 会話 = 7 カテゴリ × 6、`casual` 専用が 4、`renofa` 専用が 4。id の重複なし、
+- 同梱ファイルの内容は `DialogueLoaderTests` が検証しています（全 96 会話。プロファイル共通は
+  42 会話 = 7 カテゴリ × 6、`casual` 専用が 4、`renofa` 専用が 50
+  = `renofa` 14 + `renofa_pre_match` 12 + `renofa_match` 12 + `renofa_post_match` 12。id の重複なし、
   speaker は `saku` / `shiori` のみ、1 会話 4 発言まで）。件数を変えたらテストの期待値も直してください。
 
 ### 11.7 Quiet Mode / 仕事中モード
@@ -869,10 +891,14 @@ python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio -
 - プロファイルの `dialogueCategories` / `disabledDialogueCategories` は
   `ConversationScheduler`（どのカテゴリを話してよいか）と `LocalDialogueProvider`（どの会話を選ぶか）の
   両方に効きます。
-- 同梱の台詞には `casual` 専用が 4 会話（`ambient` / `pair`）、`renofa` 専用が 4 会話（`renofa`）入っています。
-- カテゴリ `renofa` / `renofa_pre_match` / `renofa_match` / `renofa_post_match` を追加しました。
-  スケジューラ上は `ambient` と同じ周期（40〜90 分・基準時刻も共有）で、優先順位は `ambient` の直前です。
-  試合前／試合中／試合後の 3 つは**将来の時刻ベース切替（§12.7）用の置き場**で、同梱の台詞はまだありません。
+- 同梱の台詞には `casual` 専用が 4 会話（`ambient` / `pair`）、`renofa` 専用が 50 会話
+  （`renofa` 14 / `renofa_pre_match` 12 / `renofa_match` 12 / `renofa_post_match` 12）入っています。
+- カテゴリ `renofa` / `renofa_pre_match` / `renofa_match` / `renofa_post_match` は、
+  その日のキックオフ時刻から決まる**局面**（`MatchPhase`）で自動的に出し分けます（§11.3・§12.9）。
+  `renofa` は `ambient` と同じ周期（40〜90 分・基準時刻も共有）、
+  試合前／試合中／試合後は 12〜20 分周期で最優先・最低間隔の免除つきです。
+- メニューの「ちょっと話して」も、いまの局面のカテゴリを候補に入れます
+  （試合中に押せば試合中の台詞が出ます）。
 - **スプライトセットのフォルダに `dialogue.json` を置くと、そのプロファイル専用の台詞になります。**
   台詞の解決順は「いま表示中のスキンフォルダ → 内蔵」なので（§11.2）、
   例えば `~/.codex/pets/saku_shiori_renofa/dialogue.json` はそのプロファイルのときだけ使われます。
@@ -1040,12 +1066,29 @@ python3 scripts/update_holidays.py --check  # 更新せず差分だけ見る
 「今日は試合だから renofa で」と選んだ見た目が翌日まで残らないように、という意図です。
 例外は「起動時のプロファイル」でプロファイル id を指定しているときだけです（§12.7）。
 
-#### 将来の拡張ポイント
+#### キックオフ時刻への連動と、将来の拡張ポイント
 
-- **キックオフ時刻に連動する**: `RenofaMatch.kickoffDate(calendar:)` が入口です。
-  試合前／試合中／試合後でプロファイルや台詞カテゴリ（`renofa_pre_match` / `renofa_match` /
-  `renofa_post_match`。§12.5）を変えるなら、`DayProfileResolver` に「時刻まで見る版」を足し、
+- **キックオフ時刻への連動（実装済み）**: `RenofaMatch.phase(at:windows:calendar:)` が
+  その時刻の局面（`MatchPhase`）を返します（`RenofaSchedule.phase(at:)` は試合日でなければ nil）。
+  窓の長さは `MatchPhaseWindows` の 3 つの値だけで決まります。
+
+  | 局面 | 窓 | 台詞カテゴリ |
+  |---|---|---|
+  | `.matchDay` | 00:00 〜 キックオフ 90 分前（キックオフ不明なら終日） | `renofa` |
+  | `.preMatch` | キックオフ **90 分前**（`preMatchLead`）〜 キックオフ | `renofa_pre_match` |
+  | `.inMatch` | キックオフ 〜 **+120 分**（`matchDuration`） | `renofa_match` |
+  | `.postMatch` | 試合終了の見込み 〜 **+120 分**（`postMatchLength`） | `renofa_post_match` |
+  | `.finished` | それ以降 | なし（黙る） |
+
+  結線は `ConversationCoordinator.syncScheduler(now:)` →
+  `ConversationScheduler.setMatchPhase(_:now:)` で、**60 秒ごとの tick のついで**に評価します
+  （キックオフ用のタイマーは足していません。ポーリングもしません）。
+  窓を変えたいときは `MatchPhaseWindows` の既定値を書き換えるか、
+  `AppearanceCoordinator.matchPhase(at:)` から別の値を渡してください。
+- **見た目（着替え）は日単位のまま**です。キックオフで衣装を変えるなら、
   `AppearanceCoordinator` にキックオフ時刻のタイマーを 1 本足します（日付の再評価と同じ流儀で、ポーリングはしない）。
+- **試合結果は今後も取得しません。** アプリはネットワークに一切アクセスしない方針なので、
+  勝敗・得点に反応する台詞は作れません（試合後の台詞も結果に踏み込みません）。
 - **判定を増やす**: `DayProfileResolver.rules` に `DayRule` を足すだけです（季節・誕生日・他のスポーツ）。
   プロファイル自体は `profiles.json` に 1 項目足せば増やせます（§12.4）。
 

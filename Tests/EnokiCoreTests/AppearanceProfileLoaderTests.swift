@@ -48,7 +48,8 @@ final class AppearanceProfileLoaderTests: XCTestCase {
         XCTAssertEqual(renofa.spriteSet, "saku_shiori_renofa")
         XCTAssertTrue(renofa.special, "renofa は仕事中モードの切り替えで消えない")
         XCTAssertEqual(renofa.allowedCategories(base: Set(DialogueCategory.allCases)),
-                       [.renofa, .ambient, .pair, .encouragement])
+                       [.renofa, .renofaPreMatch, .renofaMatch, .renofaPostMatch,
+                        .ambient, .pair, .encouragement])
     }
 
     // MARK: - allowedCategories

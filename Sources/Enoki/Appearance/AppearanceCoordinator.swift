@@ -159,6 +159,11 @@ final class AppearanceCoordinator {
         DayProfileResolver.resolve(date: Date(), schedule: schedule, holidays: holidays)
     }
 
+    /// 試合日のいまの局面（§12.9）。今日が試合日でなければ nil。
+    func matchPhase(at date: Date = Date()) -> MatchPhase? {
+        schedule.phase(at: date)
+    }
+
     /// メニュー・About の 1 行（「今日: 日曜日 → Casual」「今日: 平日」）
     var todayDescription: String {
         let decision = todayDecision
