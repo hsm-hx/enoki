@@ -31,6 +31,12 @@
       "id": "renofa",
       "displayName": "Renofa",
       "spriteSet": "saku_shiori_renofa",
+      "spriteSetsByPhase": {
+        "matchDay": "saku_shiori_renofa_matchday",
+        "preMatch": "saku_shiori_renofa_pre_match",
+        "inMatch": "saku_shiori_renofa_in_match",
+        "postMatch": "saku_shiori_renofa_post_match"
+      },
       "dialogueCategories": [
         "renofa",
         "renofa_pre_match",

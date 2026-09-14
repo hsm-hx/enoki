@@ -3,7 +3,9 @@
 Codex Pet 形式のスプライトセット（8列×9行, 192×208px）を作る。
 
   python3 scripts/build_variant_atlas.py --src ~/Desktop/codex_pet_skin_sakushio --variant private \
-      --out "Sources/Enoki/Resources/Characters/saku_shiori_casual" --id sakushio_casual --name "朔と栞（私服）"
+      --reference ~/.codex/pets/sakushio_pet/spritesheet.png \
+      --out "$HOME/Library/Application Support/Enoki/Characters/saku_shiori_casual" \
+      --id sakushio_casual --name "朔と栞（私服）"
 
 - 各シートは 4 列 × 2 行。列の切れ目はアルファの帯から検出し、検出できない行（横断幕が隣にかかる等）は等分割。
 - キャラクターの身長は「基準シート（ベーススキン）の idle_02」に合わせるので、プロファイルを切り替えても
@@ -152,8 +154,14 @@ def main():
     ap.add_argument("--name", required=True, help="displayName")
     ap.add_argument("--reference", default=str(Path(__file__).resolve().parent.parent
                                                / "Sources/Enoki/Resources/DefaultSkin/spritesheet.png"),
-                    help="身長を合わせる基準シート（既定: 内蔵 DefaultSkin）")
+                    help="身長を合わせる基準シート。既定は内蔵 DefaultSkin だが、これは"
+                         "デモ用キャラクター（栞）のシートなので、朔と栞の差分を作るときは"
+                         "元のシート（例: ~/.codex/pets/sakushio_pet/spritesheet.png）を明示すること")
     ap.add_argument("--no-webp", action="store_true")
+    ap.add_argument("--idle-image", default=None,
+                    help="idle_01 に使う単体絵を差し替える（例: renofa_in_match.png）。省略時は idle_1_<variant>.png")
+    ap.add_argument("--static-idle", action="store_true",
+                    help="idle 行のまばたき（idle_02 / idle_03）も --idle-image と同じ絵にして静止させる（試合局面ポーズ用）")
     args = ap.parse_args()
 
     src, out = Path(args.src).expanduser(), Path(args.out).expanduser()
@@ -169,7 +177,8 @@ def main():
         for i, cell in enumerate(slice_sheet(find_source(src, f"sprite_{n}", args.variant))):
             cells[f"{n}-{i}"] = cell
     frames = {name: cells[label] for name, label in mapping.items()}
-    idle = Image.open(find_source(src, "idle_1", args.variant)).convert("RGBA")
+    idle_path = Path(args.idle_image).expanduser() if args.idle_image else find_source(src, "idle_1", args.variant)
+    idle = Image.open(idle_path).convert("RGBA")
     bb = alpha_bbox(idle)
     frames["idle_01"] = (idle, (bb[0] + bb[2]) / 2, bb[3] - GROW)
 
@@ -178,9 +187,16 @@ def main():
     idle_scale = ref_h / content_height(frames["idle_01"][0])
     print(f"基準身長 {ref_h}px / シート倍率 {sheet_scale:.4f} / idle_01 倍率 {idle_scale:.4f}")
 
+    idle_names = {"idle_01"}
+    if args.static_idle:
+        # まばたきのコマも同じ絵にして、局面ポーズ（横断幕・フラッグ）が一瞬消えないようにする
+        frames["idle_02"] = frames["idle_01"]
+        frames["idle_03"] = frames["idle_01"]
+        idle_names |= {"idle_02", "idle_03"}
+
     placed = {}
     for name, (im, ax, fy) in frames.items():
-        scale = idle_scale if name == "idle_01" else sheet_scale
+        scale = idle_scale if name in idle_names else sheet_scale
         placed[name] = place(im, ax, fy, scale)
         # はみ出し警告
         w, h = round(im.width * scale), round(im.height * scale)

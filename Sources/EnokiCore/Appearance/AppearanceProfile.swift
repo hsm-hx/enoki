@@ -22,6 +22,9 @@ public struct AppearanceProfile: Codable, Equatable, Sendable {
     public let displayName: String
     /// スプライトセットのフォルダ名。nil ならベーススキン（スキンメニューで選んでいるスキン）を使う。
     public let spriteSet: String?
+    /// 試合日の局面ごとのスプライトセット（キーは `MatchPhase` の `rawValue`）。
+    /// nil / 該当なしなら `spriteSet` を使う（= 局面を無視する従来どおりの動き）。
+    public let spriteSetsByPhase: [String: String]?
     /// 使ってよい台詞カテゴリ（nil = 制限しない）。未知のカテゴリ名は無視する。
     public let dialogueCategories: [String]?
     /// 使わない台詞カテゴリ。`dialogueCategories` より強い。
@@ -34,6 +37,7 @@ public struct AppearanceProfile: Codable, Equatable, Sendable {
     public init(id: String,
                 displayName: String,
                 spriteSet: String? = nil,
+                spriteSetsByPhase: [String: String]? = nil,
                 dialogueCategories: [String]? = nil,
                 disabledDialogueCategories: [String] = [],
                 special: Bool = false,
@@ -41,6 +45,7 @@ public struct AppearanceProfile: Codable, Equatable, Sendable {
         self.id = id
         self.displayName = displayName
         self.spriteSet = spriteSet
+        self.spriteSetsByPhase = spriteSetsByPhase
         self.dialogueCategories = dialogueCategories
         self.disabledDialogueCategories = disabledDialogueCategories
         self.special = special
@@ -48,7 +53,8 @@ public struct AppearanceProfile: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, displayName, spriteSet, dialogueCategories, disabledDialogueCategories, special, transitionAnimation
+        case id, displayName, spriteSet, spriteSetsByPhase
+        case dialogueCategories, disabledDialogueCategories, special, transitionAnimation
     }
 
     public init(from decoder: Decoder) throws {
@@ -56,6 +62,7 @@ public struct AppearanceProfile: Codable, Equatable, Sendable {
         id = try container.decode(String.self, forKey: .id)
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? id
         spriteSet = try container.decodeIfPresent(String.self, forKey: .spriteSet)
+        spriteSetsByPhase = try container.decodeIfPresent([String: String].self, forKey: .spriteSetsByPhase)
         dialogueCategories = try container.decodeIfPresent([String].self, forKey: .dialogueCategories)
         disabledDialogueCategories = try container.decodeIfPresent([String].self, forKey: .disabledDialogueCategories) ?? []
         special = try container.decodeIfPresent(Bool.self, forKey: .special) ?? false
@@ -64,6 +71,19 @@ public struct AppearanceProfile: Codable, Equatable, Sendable {
 
     /// `profiles.json` が読めなかったときに使う最小構成（ベーススキン + 全カテゴリ）
     public static let fallbackDefault = AppearanceProfile(id: ID.default, displayName: "Default")
+
+    /// この局面で使うスプライトセットのフォルダ名。
+    ///
+    /// - `phase` が nil（試合日ではない）→ `spriteSet`
+    /// - `spriteSetsByPhase` にその局面の名前があればそれ
+    /// - `.finished`（試合終了想定時刻以降）は `.postMatch` の名前にフォールバック（試合後のポーズのまま）
+    /// - どれも無ければ `spriteSet`
+    public func spriteSet(for phase: MatchPhase?) -> String? {
+        guard let phase, let byPhase = spriteSetsByPhase else { return spriteSet }
+        if let name = byPhase[phase.rawValue], !name.isEmpty { return name }
+        if phase == .finished, let name = byPhase[MatchPhase.postMatch.rawValue], !name.isEmpty { return name }
+        return spriteSet
+    }
 
     /// このプロファイルで使ってよいカテゴリ。
     /// `base`（仕事中モードが許すカテゴリ）∩ `dialogueCategories`（あれば）− `disabledDialogueCategories`。

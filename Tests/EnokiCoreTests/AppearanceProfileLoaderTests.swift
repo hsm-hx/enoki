@@ -46,10 +46,53 @@ final class AppearanceProfileLoaderTests: XCTestCase {
 
         let renofa = try XCTUnwrap(result.profile(id: "renofa"))
         XCTAssertEqual(renofa.spriteSet, "saku_shiori_renofa")
+        XCTAssertEqual(renofa.spriteSetsByPhase, ["matchDay": "saku_shiori_renofa_matchday",
+                                                  "preMatch": "saku_shiori_renofa_pre_match",
+                                                  "inMatch": "saku_shiori_renofa_in_match",
+                                                  "postMatch": "saku_shiori_renofa_post_match"])
         XCTAssertTrue(renofa.special, "renofa は仕事中モードの切り替えで消えない")
         XCTAssertEqual(renofa.allowedCategories(base: Set(DialogueCategory.allCases)),
                        [.renofa, .renofaPreMatch, .renofaMatch, .renofaPostMatch,
                         .ambient, .pair, .encouragement])
+    }
+
+    // MARK: - 局面ごとのスプライトセット
+
+    func testBundledRenofaSpriteSetForPhase() throws {
+        let result = try AppearanceProfileLoader.load(url: bundledProfilesURL)
+        let renofa = try XCTUnwrap(result.profile(id: "renofa"))
+        XCTAssertEqual(renofa.spriteSet(for: .matchDay), "saku_shiori_renofa_matchday")
+        XCTAssertEqual(renofa.spriteSet(for: .preMatch), "saku_shiori_renofa_pre_match")
+        XCTAssertEqual(renofa.spriteSet(for: .inMatch), "saku_shiori_renofa_in_match")
+        XCTAssertEqual(renofa.spriteSet(for: .postMatch), "saku_shiori_renofa_post_match")
+        XCTAssertEqual(renofa.spriteSet(for: .finished), "saku_shiori_renofa_post_match",
+                       "終了後は試合後のポーズのまま")
+        XCTAssertEqual(renofa.spriteSet(for: nil), "saku_shiori_renofa", "試合日でなければ通常のセット")
+
+        // 局面を書いていないプロファイルは、いつでも spriteSet のまま
+        let casual = try XCTUnwrap(result.profile(id: "casual"))
+        XCTAssertNil(casual.spriteSetsByPhase)
+        for phase in [MatchPhase.matchDay, .preMatch, .inMatch, .postMatch, .finished, nil] {
+            XCTAssertEqual(casual.spriteSet(for: phase), "saku_shiori_casual")
+        }
+        let standard = try XCTUnwrap(result.profile(id: "default"))
+        XCTAssertNil(standard.spriteSet(for: .inMatch))
+    }
+
+    func testSpriteSetForPhaseFallsBackToSpriteSet() throws {
+        // 一部の局面だけ書いた場合、残りは spriteSet に落ちる
+        let result = try load("""
+        {"profiles": [{"id": "p", "spriteSet": "base",
+                       "spriteSetsByPhase": {"inMatch": "in", "postMatch": "", "unknownPhase": "x", "bad": 42}}]}
+        """)
+        let profile = try XCTUnwrap(result.profile(id: "p"))
+        XCTAssertEqual(profile.spriteSetsByPhase, ["inMatch": "in", "unknownPhase": "x"],
+                       "空文字と文字列でない値は捨てる（未知の局面名は参照されないので残ってよい）")
+        XCTAssertEqual(profile.spriteSet(for: .inMatch), "in")
+        XCTAssertEqual(profile.spriteSet(for: .preMatch), "base")
+        XCTAssertEqual(profile.spriteSet(for: .postMatch), "base")
+        XCTAssertEqual(profile.spriteSet(for: .finished), "base", "postMatch が無ければ spriteSet")
+        XCTAssertEqual(profile.spriteSet(for: nil), "base")
     }
 
     // MARK: - allowedCategories

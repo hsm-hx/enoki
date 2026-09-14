@@ -5,7 +5,7 @@ import Foundation
 /// キックオフ時刻が分かっている試合だけ細かく分かれます（不明なら終日 `.matchDay`）。
 /// **試合結果（勝ち負け・得点）は見ません。** アプリはネットワークに一切アクセスしないので、
 /// 「どちらが勝ったか」を知る手段がなく、台詞も結果に踏み込まない書き方にしてあります。
-public enum MatchPhase: Equatable, Sendable {
+public enum MatchPhase: String, Equatable, Sendable {
     /// 試合の日だが、まだキックオフまで間がある（またはキックオフ時刻が不明）
     case matchDay
     /// キックオフ直前
@@ -16,6 +16,17 @@ public enum MatchPhase: Equatable, Sendable {
     case postMatch
     /// 試合後の余韻も過ぎた（この日はもう試合の話をしない）
     case finished
+
+    /// メニュー・About に出す日本語名（`profiles.json` の `spriteSetsByPhase` のキーは `rawValue`）
+    public var localizedName: String {
+        switch self {
+        case .matchDay:  return "試合日"
+        case .preMatch:  return "試合前"
+        case .inMatch:   return "試合中"
+        case .postMatch: return "試合後"
+        case .finished:  return "終了後"
+        }
+    }
 
     /// この局面で話してよい renofa 系カテゴリ（`.finished` は nil = どれも話さない）
     public var dialogueCategory: DialogueCategory? {
@@ -31,14 +42,14 @@ public enum MatchPhase: Equatable, Sendable {
 
 /// 局面の窓の長さ。キックオフ時刻を中心に前後の幅だけを決める（値を変えれば局面の切り替わりも変わる）。
 public struct MatchPhaseWindows: Equatable, Sendable {
-    /// キックオフの何秒前から `.preMatch` にするか（既定 90 分）
+    /// キックオフの何秒前から `.preMatch` にするか（既定 120 分）
     public var preMatchLead: TimeInterval
     /// キックオフから何秒を `.inMatch` とみなすか（既定 120 分。前後半 + ハーフタイム + ロスタイムの目安）
     public var matchDuration: TimeInterval
     /// 試合終了の見込み時刻から何秒を `.postMatch` にするか（既定 120 分）
     public var postMatchLength: TimeInterval
 
-    public init(preMatchLead: TimeInterval = 90 * 60,
+    public init(preMatchLead: TimeInterval = 120 * 60,
                 matchDuration: TimeInterval = 120 * 60,
                 postMatchLength: TimeInterval = 120 * 60) {
         self.preMatchLead = preMatchLead
@@ -97,7 +108,7 @@ public struct RenofaMatch: Codable, Equatable, Sendable {
     /// この試合の、その時刻での局面。
     ///
     /// - キックオフ不明: 終日 `.matchDay`
-    /// - `[00:00, kickoff-90分)` → `.matchDay` / `[kickoff-90分, kickoff)` → `.preMatch`
+    /// - `[00:00, kickoff-120分)` → `.matchDay` / `[kickoff-120分, kickoff)` → `.preMatch`
     /// - `[kickoff, kickoff+120分)` → `.inMatch` / `[kickoff+120分, kickoff+240分)` → `.postMatch`
     /// - それ以降 → `.finished`
     ///
@@ -112,6 +123,21 @@ public struct RenofaMatch: Codable, Equatable, Sendable {
         if date < end { return .inMatch }
         if date < end.addingTimeInterval(windows.postMatchLength) { return .postMatch }
         return .finished
+    }
+
+    /// 局面が切り替わる時刻（早い順）。キックオフが分からない試合は空。
+    ///
+    /// `kickoff-preMatchLead`（→ `.preMatch`） / `kickoff`（→ `.inMatch`） /
+    /// `kickoff+matchDuration`（→ `.postMatch`） / `kickoff+matchDuration+postMatchLength`（→ `.finished`）の 4 つ。
+    /// 見た目を局面に合わせて切り替えるとき、この時刻にだけタイマーを張ればよい（ポーリング不要）。
+    public func phaseBoundaries(windows: MatchPhaseWindows = MatchPhaseWindows(),
+                                calendar: Calendar = .current) -> [Date] {
+        guard let kickoff = kickoffDate(calendar: calendar) else { return [] }
+        let end = kickoff.addingTimeInterval(windows.matchDuration)
+        return [kickoff.addingTimeInterval(-windows.preMatchLead),
+                kickoff,
+                end,
+                end.addingTimeInterval(windows.postMatchLength)]
     }
 
     static func parseTime(_ value: String) -> (hour: Int, minute: Int)? {
@@ -180,6 +206,16 @@ public struct RenofaSchedule: Codable, Equatable, Sendable {
                       windows: MatchPhaseWindows = MatchPhaseWindows(),
                       calendar: Calendar = .current) -> MatchPhase? {
         match(on: date, calendar: calendar)?.phase(at: date, windows: windows, calendar: calendar)
+    }
+
+    /// その時刻より後の、いちばん近い局面の切り替わり時刻（その日に試合が無い・キックオフ不明・
+    /// もう全部過ぎた場合は nil）。局面タイマーを 1 本だけ張るために使う。
+    public func nextPhaseBoundary(after date: Date,
+                                  windows: MatchPhaseWindows = MatchPhaseWindows(),
+                                  calendar: Calendar = .current) -> Date? {
+        guard let match = match(on: date, calendar: calendar) else { return nil }
+        return match.phaseBoundaries(windows: windows, calendar: calendar)
+            .first { $0 > date }
     }
 }
 

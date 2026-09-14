@@ -75,6 +75,8 @@ public enum AppearanceProfileLoader {
                 id: id,
                 displayName: (entry["displayName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? id,
                 spriteSet: (entry["spriteSet"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                spriteSetsByPhase: (entry["spriteSetsByPhase"] as? [String: Any])
+                    .map { $0.compactMapValues { $0 as? String }.filter { !$0.value.isEmpty } },
                 dialogueCategories: (entry["dialogueCategories"] as? [Any])?.compactMap { $0 as? String },
                 disabledDialogueCategories: (entry["disabledDialogueCategories"] as? [Any])?.compactMap { $0 as? String } ?? [],
                 special: (entry["special"] as? NSNumber)?.boolValue ?? false,

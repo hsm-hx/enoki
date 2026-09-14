@@ -55,6 +55,11 @@ final class AppearanceCoordinator {
     private(set) var schedule: RenofaSchedule = .empty
     /// 日付が変わった／スリープから復帰したときの再評価用
     private var dayObservers: [NSObjectProtocol] = []
+    /// 次の局面（試合前／試合中／試合後）の切り替わり時刻に 1 回だけ発火するタイマー。
+    /// **ポーリングはしない**（境界の時刻にだけ起きて、起きたら次の境界に張り直す）。
+    private var phaseTimer: DispatchSourceTimer?
+    /// いまタイマーを張っている境界（同じ境界に張り直したときログを繰り返さないため）
+    private var armedPhaseBoundary: Date?
 
     private(set) var profiles: [AppearanceProfile] = [.fallbackDefault]
     private(set) var currentProfile: AppearanceProfile = .fallbackDefault
@@ -76,6 +81,7 @@ final class AppearanceCoordinator {
 
     deinit {
         for observer in dayObservers { NotificationCenter.default.removeObserver(observer) }
+        phaseTimer?.cancel()
     }
 
     // MARK: - プロファイル定義
@@ -164,13 +170,15 @@ final class AppearanceCoordinator {
         schedule.phase(at: date)
     }
 
-    /// メニュー・About の 1 行（「今日: 日曜日 → Casual」「今日: 平日」）
+    /// メニュー・About の 1 行
+    /// （「今日: 日曜日 → Casual」「今日: 平日」「今日: レノファ戦 vs ○○ (H) 13:00 → Renofa（試合前）」）
     var todayDescription: String {
         let decision = todayDecision
         guard let id = decision.profileID, let profile = profile(id: id) else {
             return "今日: \(decision.reason)"
         }
-        return "今日: \(decision.reason) → \(profile.displayName)"
+        let phase = matchPhase().map { "（\($0.localizedName)）" } ?? ""
+        return "今日: \(decision.reason) → \(profile.displayName)\(phase)"
     }
 
     /// 日付が変わった／スリープから復帰した: 手動選択の期限切れを処理してから解決し直す
@@ -180,6 +188,7 @@ final class AppearanceCoordinator {
         let decision = todayDecision
         Self.logger.info("\(reason, privacy: .public) → 今日: \(decision.reason, privacy: .public) → \(decision.profileID ?? "default（既存ルール）", privacy: .public)")
         apply()
+        armPhaseTimer()
     }
 
     /// 手動選択は**その日限り**。選んだ日と今日が違えば解除する。
@@ -209,6 +218,48 @@ final class AppearanceCoordinator {
         dayObservers = [dayChanged, didWake]
     }
 
+    // MARK: - 局面タイマー（§12.9）
+
+    private static let boundaryTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    /// 次の局面の切り替わり時刻に 1 回だけ起きるタイマーを張り直す。
+    ///
+    /// 試合日でない・キックオフが分からない・その日の境界を全部過ぎた場合はタイマーを持たない。
+    /// 発火したら `reevaluateDay(reason:)` → `apply()` で着替え、その中からまた張り直される。
+    /// 日付が変わったときとスリープ復帰も既存の `reevaluateDay` 経由で張り直るので、
+    /// 寝ている間に境界を過ぎていても復帰時の再評価で追いつく。
+    private func armPhaseTimer() {
+        phaseTimer?.cancel()
+        phaseTimer = nil
+        guard let boundary = schedule.nextPhaseBoundary(after: Date()) else {
+            armedPhaseBoundary = nil
+            return
+        }
+
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        // 境界ちょうどだと丸め次第で手前の局面のまま読むことがあるので 1 秒だけ後ろにずらす
+        let delay = max(0, boundary.addingTimeInterval(1).timeIntervalSinceNow)
+        timer.schedule(deadline: .now() + delay, leeway: .seconds(5))
+        timer.setEventHandler { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let phase = self.matchPhase()
+                Self.logger.info("試合の局面が変わりました → \(phase?.rawValue ?? "(試合日ではない)", privacy: .public)")
+                self.reevaluateDay(reason: "試合の局面が変わりました")
+            }
+        }
+        phaseTimer = timer
+        timer.resume()
+        if boundary != armedPhaseBoundary {
+            armedPhaseBoundary = boundary
+            Self.logger.info("次の局面境界: \(Self.boundaryTimeFormatter.string(from: boundary), privacy: .public)")
+        }
+    }
+
     // MARK: - 起動
 
     /// 起動時: 「起動時のプロファイル」設定と「手動選択はその日限り」を反映してから解決・適用する
@@ -235,6 +286,7 @@ final class AppearanceCoordinator {
         Self.logger.info("今日: \(decision.reason, privacy: .public) → \(decision.profileID ?? "default（既存ルール）", privacy: .public)")
         registerDayObservers()
         apply(animated: false)
+        armPhaseTimer()
     }
 
     /// 「起動時のプロファイル」でプロファイル id を指定しているか（「前回の状態」「自動」なら false）
@@ -274,28 +326,44 @@ final class AppearanceCoordinator {
         return urls
     }
 
-    /// プロファイルのスプライトセットを読む。見つからない／読めないときは nil（= ベーススキンへフォールバック）。
-    private func spriteSetSkin(for profile: AppearanceProfile) -> Skin? {
-        guard let spriteSet = profile.spriteSet, !spriteSet.isEmpty else { return nil }
-        for url in Self.spriteSetCandidates(named: spriteSet) {
+    /// プロファイルのスプライトセットを読む。
+    ///
+    /// 試合日の局面（`phase`）に対応するセットがあればそれを優先し、無ければ通常の `spriteSet`、
+    /// それも無ければ nil（= ベーススキンへフォールバック）。
+    private func spriteSetSkin(for profile: AppearanceProfile, phase: MatchPhase?) -> Skin? {
+        var names: [String] = []
+        if let phased = profile.spriteSet(for: phase), !phased.isEmpty { names.append(phased) }
+        if let base = profile.spriteSet, !base.isEmpty, !names.contains(base) { names.append(base) }
+        guard !names.isEmpty else { return nil }
+
+        for (index, name) in names.enumerated() {
+            if let skin = loadSpriteSet(named: name) { return skin }
+            let next = index + 1 < names.count ? names[index + 1] : "ベーススキン"
+            Self.logger.info("スプライトセット \(name, privacy: .public) が見つかりません。\(next, privacy: .public) を使います")
+        }
+        return nil
+    }
+
+    /// 名前でスプライトセットのフォルダを探して読む（読めたらキャッシュする）
+    private func loadSpriteSet(named name: String) -> Skin? {
+        for url in Self.spriteSetCandidates(named: name) {
             guard SkinLoader.isSkinDirectory(url) else { continue }
             if let cached = skinCache[url] { return cached }
             do {
                 let skin = try SkinLoader.load(directory: url)
                 skinCache[url] = skin
-                Self.logger.info("スプライトセット \(spriteSet, privacy: .public) を \(url.path, privacy: .public) から読み込みました")
+                Self.logger.info("スプライトセット \(name, privacy: .public) を \(url.path, privacy: .public) から読み込みました")
                 return skin
             } catch {
-                Self.logger.info("スプライトセット \(spriteSet, privacy: .public) を読めません（\(url.path, privacy: .public)）: \(error.localizedDescription, privacy: .public)")
+                Self.logger.info("スプライトセット \(name, privacy: .public) を読めません（\(url.path, privacy: .public)）: \(error.localizedDescription, privacy: .public)")
             }
         }
-        Self.logger.info("スプライトセット \(spriteSet, privacy: .public) が見つかりません。ベーススキンを使います")
         return nil
     }
 
     /// いまのプロファイルで表示すべきスキン（スプライトセットが無ければベーススキン）
     func resolvedSkinForCurrentProfile() -> Skin? {
-        spriteSetSkin(for: currentProfile) ?? host?.baseSkin
+        spriteSetSkin(for: currentProfile, phase: matchPhase()) ?? host?.baseSkin
     }
 
     // MARK: - 適用
@@ -304,10 +372,11 @@ final class AppearanceCoordinator {
     func apply(animated: Bool = true) {
         guard let host else { return }
         guard !isSwapping else { needsReapply = true; return }
+        defer { armPhaseTimer() }   // 局面用のセットがあるかに関わらず、次の境界に張り直す
 
         let id = resolvedProfileID
         let profile = self.profile(id: id) ?? .fallbackDefault
-        let spriteSkin = spriteSetSkin(for: profile)
+        let spriteSkin = spriteSetSkin(for: profile, phase: matchPhase())
         let target = spriteSkin ?? host.baseSkin
 
         let profileChanged = profile != currentProfile
@@ -429,7 +498,8 @@ final class AppearanceCoordinator {
         if let url = currentSpriteSetURL {
             let home = FileManager.default.homeDirectoryForCurrentUser.path
             let path = url.path.hasPrefix(home) ? "~" + url.path.dropFirst(home.count) : url.path
-            return "\(spriteSet)（\(path)）"
+            // 試合日は局面用のセットに解決されることがあるので、名前も解決先のフォルダ名を出す
+            return "\(url.lastPathComponent)（\(path)）"
         }
         return "\(spriteSet)（未配置のためベーススキン）"
     }

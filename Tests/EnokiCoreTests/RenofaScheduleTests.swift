@@ -9,8 +9,9 @@ final class RenofaScheduleTests: XCTestCase {
         return calendar
     }()
 
-    /// 同梱の Sources/Enoki/Resources/Schedule/renofa-schedule.json
-    private var bundledScheduleURL: URL {
+    /// ローカルに置かれた日程データ（`Sources/Enoki/Resources/Schedule/renofa-schedule.json`）。
+    /// **リポジトリには含めていない個人データ**なので、置いていなければこの検証はスキップする。
+    private var localScheduleURL: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()          // Tests/EnokiCoreTests
             .deletingLastPathComponent()          // Tests
@@ -22,13 +23,15 @@ final class RenofaScheduleTests: XCTestCase {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
     }
 
-    // MARK: - 同梱ファイル
+    // MARK: - ローカルに置いた日程データ（あれば検証する）
 
-    func testBundledScheduleLoads() throws {
-        let result = try RenofaScheduleLoader.load(url: bundledScheduleURL)
-        XCTAssertEqual(result.issues, [], "同梱の試合日程に壊れた項目があります")
+    func testLocalScheduleLoadsIfPresent() throws {
+        guard FileManager.default.fileExists(atPath: localScheduleURL.path) else {
+            throw XCTSkip("日程データは個人データなのでリポジトリに含めていません（Sources/Enoki/Resources/Schedule/README.md）")
+        }
+        let result = try RenofaScheduleLoader.load(url: localScheduleURL)
+        XCTAssertEqual(result.issues, [], "日程データに壊れた項目があります")
         XCTAssertEqual(result.schedule.schemaVersion, 1)
-        XCTAssertEqual(result.schedule.team, "renofa-yamaguchi")
         XCTAssertNotNil(result.schedule.source, "取得元を書いておくこと（URL か \"manual\"）")
 
         // 試合が 0 件でも壊れていないこと（日程を空にして配布することもある）
@@ -116,8 +119,8 @@ final class RenofaScheduleTests: XCTestCase {
             match.phase(at: dateTime(hour, minute), calendar: calendar)
         }
         XCTAssertEqual(phase(0, 0), .matchDay)
-        XCTAssertEqual(phase(11, 29), .matchDay)
-        XCTAssertEqual(phase(11, 30), .preMatch)    // キックオフ 90 分前ちょうど
+        XCTAssertEqual(phase(10, 59), .matchDay)
+        XCTAssertEqual(phase(11, 0), .preMatch)     // キックオフ 120 分前ちょうど
         XCTAssertEqual(phase(12, 59), .preMatch)
         XCTAssertEqual(phase(13, 0), .inMatch)      // キックオフちょうど
         XCTAssertEqual(phase(14, 59), .inMatch)
@@ -149,6 +152,58 @@ final class RenofaScheduleTests: XCTestCase {
         XCTAssertEqual(schedule.phase(at: dateTime(13, 30), calendar: calendar), .inMatch)
         XCTAssertNil(schedule.phase(at: dateTime(13, 30, day: 21), calendar: calendar), "試合日でない日は nil")
         XCTAssertNil(RenofaSchedule.empty.phase(at: dateTime(13, 30), calendar: calendar))
+    }
+
+    // MARK: - 局面の境界時刻（見た目の切り替えタイマー用）
+
+    func testPhaseBoundaryDates() {
+        let boundaries = kickoffMatch.phaseBoundaries(calendar: calendar)
+        XCTAssertEqual(boundaries, [dateTime(11, 0),    // → .preMatch（キックオフ 120 分前）
+                                    dateTime(13, 0),    // → .inMatch（キックオフ）
+                                    dateTime(15, 0),    // → .postMatch（+120 分）
+                                    dateTime(17, 0)])   // → .finished（+240 分）
+        // 境界の直後は次の局面に入っている
+        for (boundary, expected) in zip(boundaries, [MatchPhase.preMatch, .inMatch, .postMatch, .finished]) {
+            XCTAssertEqual(kickoffMatch.phase(at: boundary, calendar: calendar), expected)
+        }
+    }
+
+    func testPhaseBoundariesAreEmptyWithoutKickoff() {
+        let match = RenofaMatch(date: "2026-09-20", opponent: "ツエーゲン金沢", home: false)
+        XCTAssertEqual(match.phaseBoundaries(calendar: calendar), [])
+        XCTAssertNil(RenofaSchedule(matches: [match]).nextPhaseBoundary(after: dateTime(9, 0), calendar: calendar))
+    }
+
+    func testNextPhaseBoundaryAdvancesThenStops() {
+        let schedule = RenofaSchedule(matches: [kickoffMatch])
+        func next(_ hour: Int, _ minute: Int) -> Date? {
+            schedule.nextPhaseBoundary(after: dateTime(hour, minute), calendar: calendar)
+        }
+        XCTAssertEqual(next(0, 0), dateTime(11, 0))
+        XCTAssertEqual(next(11, 0), dateTime(13, 0), "境界ちょうどなら次の境界を返す")
+        XCTAssertEqual(next(12, 59), dateTime(13, 0))
+        XCTAssertEqual(next(13, 0), dateTime(15, 0))
+        XCTAssertEqual(next(16, 59), dateTime(17, 0))
+        XCTAssertNil(next(17, 0), "最後の境界を過ぎたらもう張らない")
+        XCTAssertNil(next(23, 59))
+        XCTAssertNil(schedule.nextPhaseBoundary(after: dateTime(9, 0, day: 21), calendar: calendar),
+                     "試合日でない日は nil")
+    }
+
+    func testNextPhaseBoundaryUsesWindows() {
+        let schedule = RenofaSchedule(matches: [kickoffMatch])
+        let windows = MatchPhaseWindows(preMatchLead: 30 * 60, matchDuration: 60 * 60, postMatchLength: 30 * 60)
+        XCTAssertEqual(schedule.nextPhaseBoundary(after: dateTime(9, 0), windows: windows, calendar: calendar),
+                       dateTime(12, 30))
+    }
+
+    func testPhaseRawValuesAndNames() {
+        XCTAssertEqual(MatchPhase.matchDay.rawValue, "matchDay")
+        XCTAssertEqual(MatchPhase.preMatch.rawValue, "preMatch")
+        XCTAssertEqual(MatchPhase.inMatch.rawValue, "inMatch")
+        XCTAssertEqual(MatchPhase.postMatch.rawValue, "postMatch")
+        XCTAssertEqual(MatchPhase.finished.rawValue, "finished")
+        XCTAssertEqual(MatchPhase.preMatch.localizedName, "試合前")
     }
 
     func testPhaseDialogueCategory() {
