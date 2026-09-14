@@ -16,47 +16,34 @@ final class DialogueLoaderTests: XCTestCase {
         let result = try DialogueLoader.load(url: bundledDialogueURL)
         XCTAssertEqual(result.issues, [], "同梱の台詞ファイルに壊れた会話があります")
         XCTAssertEqual(result.set.schemaVersion, 1)
-        // 42（共通）+ 4（casual 専用）+ 50（renofa 専用）
-        XCTAssertEqual(result.set.conversations.count, 96)
+        // デモ用の 1 人ぶん: 6 カテゴリ × 5 件
+        XCTAssertEqual(result.set.conversations.count, 30)
     }
 
-    func testBundledDialogueHasSixCommonConversationsPerCategory() throws {
+    func testBundledDialogueHasFiveConversationsPerCategory() throws {
         let result = try DialogueLoader.load(url: bundledDialogueURL)
         XCTAssertEqual(DialogueCategory.allCases.count, 11)
 
-        // プロファイル共通（profiles 指定なし）の台詞は、元の 7 カテゴリに 6 件ずつ
-        let common = result.set.conversations.filter { $0.profiles == nil }
-        XCTAssertEqual(common.count, 42)
-        for category in [DialogueCategory.work, .water, .break, .lunch, .encouragement, .ambient, .pair] {
-            XCTAssertEqual(common.filter { $0.category == category }.count, 6, "\(category.rawValue) の件数")
+        for category in [DialogueCategory.work, .water, .break, .lunch, .encouragement, .ambient] {
+            XCTAssertEqual(result.set.conversations.filter { $0.category == category }.count, 5,
+                           "\(category.rawValue) の件数")
         }
+        // 同梱デモは 1 人用なので、2 人の会話（pair）とプロファイル専用の台詞は入れていない
+        XCTAssertTrue(result.set.conversations.allSatisfy { $0.category != .pair })
+        XCTAssertTrue(result.set.conversations.allSatisfy { $0.profiles == nil })
+        XCTAssertTrue(result.set.conversations.allSatisfy { $0.matches(profileID: "any_profile") })
     }
 
-    func testBundledDialogueHasProfileSpecificConversations() throws {
+    func testBundledDialogueIsSoloAndCentersTheBubble() throws {
         let result = try DialogueLoader.load(url: bundledDialogueURL)
 
-        let casual = result.set.conversations.filter { $0.profiles == ["casual"] }
-        XCTAssertEqual(casual.count, 4)
-        XCTAssertTrue(casual.allSatisfy { [.ambient, .pair].contains($0.category) })
-        XCTAssertTrue(casual.allSatisfy { $0.matches(profileID: "casual") })
-        XCTAssertFalse(casual.contains { $0.matches(profileID: AppearanceProfile.ID.default) })
+        XCTAssertEqual(result.set.declaredSpeakers.map(\.id), ["shiori"])
+        XCTAssertEqual(result.set.speakers, [.shiori])
+        XCTAssertTrue(result.set.isSolo, "同梱デモは 1 人用")
 
-        let renofa = result.set.conversations.filter { $0.profiles == ["renofa"] }
-        XCTAssertEqual(renofa.count, 50)
-        XCTAssertTrue(renofa.allSatisfy { ConversationScheduler.renofaCategories.contains($0.category) })
-        XCTAssertTrue(renofa.allSatisfy { $0.matches(profileID: "renofa") })
-        XCTAssertFalse(renofa.contains { $0.matches(profileID: AppearanceProfile.ID.default) })
-
-        // 局面ごとの台詞（§11.3）。すべて renofa プロファイル限定。
-        for (category, count) in [(DialogueCategory.renofa, 14), (.renofaPreMatch, 12),
-                                  (.renofaMatch, 12), (.renofaPostMatch, 12)] {
-            XCTAssertEqual(renofa.filter { $0.category == category }.count, count, "\(category.rawValue) の件数")
-        }
-
-        // profiles の無い会話はどのプロファイルでも使える
-        let common = try XCTUnwrap(result.set.conversation(id: "ambient_001"))
-        XCTAssertNil(common.profiles)
-        XCTAssertTrue(common.matches(profileID: "renofa"))
+        let style = result.set.speakerStyles.style(for: .shiori)
+        XCTAssertEqual(style.displayName, "栞")
+        XCTAssertEqual(style.anchor, 0.5, "1 人用の吹き出しは中央に出す")
     }
 
     func testBundledDialogueContentIsSane() throws {
@@ -69,7 +56,7 @@ final class DialogueLoaderTests: XCTestCase {
             XCTAssertLessThanOrEqual(conversation.lines.count, 4, "\(conversation.id) の発言が多すぎます")
             XCTAssertGreaterThan(conversation.cooldown, 0)
             for line in conversation.lines {
-                XCTAssertTrue(Speaker.allCases.contains(line.speaker))
+                XCTAssertEqual(line.speaker, .shiori)
                 XCTAssertFalse(line.text.isEmpty)
                 XCTAssertNil(line.reaction)   // 現状の素材には reaction は入っていない
             }
@@ -82,10 +69,31 @@ final class DialogueLoaderTests: XCTestCase {
         try DialogueLoader.load(data: Data(json.utf8))
     }
 
-    func testUnknownSpeakerDropsOnlyThatConversation() throws {
+    func testSpeakerIDIsFreeFormWhenSpeakersAreNotDeclared() throws {
+        // speakers を書いていないファイルでは、どんな id でも話者として扱う（自分のキャラクター名で書ける）
         let result = try load("""
         {
           "schema_version": 1,
+          "dialogues": [
+            {"id": "a", "category": "water", "cooldown": 60, "lines": [{"speaker": "mike", "text": "水"}]},
+            {"id": "b", "category": "ambient", "lines": [{"speaker": "mike", "text": "……"}]}
+          ]
+        }
+        """)
+        XCTAssertEqual(result.issues, [])
+        XCTAssertEqual(result.set.speakers, [Speaker("mike")])
+        XCTAssertTrue(result.set.isSolo)
+        let style = result.set.speakerStyles.style(for: Speaker("mike"))
+        XCTAssertEqual(style.displayName, "mike", "宣言が無ければ id をそのまま名前にする")
+        XCTAssertEqual(style.anchor, 0.5, "1 人だけなら中央")
+    }
+
+    func testUndeclaredSpeakerDropsOnlyThatConversationWhenSpeakersAreDeclared() throws {
+        // speakers を書いたファイルでは、宣言していない id（打ち間違いなど）はその会話だけ捨てる
+        let result = try load("""
+        {
+          "schema_version": 1,
+          "speakers": [{"id": "saku", "displayName": "朔"}, {"id": "shiori", "displayName": "栞"}],
           "dialogues": [
             {"id": "a", "category": "water", "cooldown": 60, "lines": [{"speaker": "saku", "text": "水"}]},
             {"id": "b", "category": "water", "lines": [{"speaker": "hiiragi", "text": "？"}]},
@@ -95,6 +103,101 @@ final class DialogueLoaderTests: XCTestCase {
         """)
         XCTAssertEqual(result.set.conversations.map(\.id), ["a", "c"])
         XCTAssertEqual(result.issues, [.unknownSpeaker(id: "b", raw: "hiiragi")])
+        XCTAssertFalse(result.set.isSolo)
+    }
+
+    func testMissingSpeakerIsAlwaysDropped() throws {
+        let result = try load("""
+        {
+          "dialogues": [
+            {"id": "a", "category": "ambient", "lines": [{"speaker": "  ", "text": "空"}]},
+            {"id": "b", "category": "ambient", "lines": [{"text": "speaker なし"}]},
+            {"id": "c", "category": "ambient", "lines": [{"speaker": "me", "text": "ここにいます"}]}
+          ]
+        }
+        """)
+        XCTAssertEqual(result.set.conversations.map(\.id), ["c"])
+        XCTAssertEqual(result.issues, [.unknownSpeaker(id: "a", raw: "(なし)"),
+                                       .unknownSpeaker(id: "b", raw: "(なし)")])
+    }
+
+    // MARK: - 話者の宣言（speakers）
+
+    func testDeclaredSpeakersDecideNameAndAnchor() throws {
+        let result = try load("""
+        {
+          "speakers": [
+            {"id": "mike", "displayName": "ミケ", "anchor": 0.35},
+            {"id": "kuro", "displayName": "クロ"}
+          ],
+          "dialogues": [
+            {"id": "a", "category": "pair", "lines": [
+              {"speaker": "kuro", "text": "……"},
+              {"speaker": "mike", "text": "にゃあ"}
+            ]}
+          ]
+        }
+        """)
+        XCTAssertEqual(result.issues, [])
+        // 宣言の順が立ち位置と色の順になる（台詞の登場順ではない）
+        XCTAssertEqual(result.set.speakerStyles.order, ["mike", "kuro"])
+        let mike = result.set.speakerStyles.style(for: Speaker("mike"))
+        XCTAssertEqual(mike.displayName, "ミケ")
+        XCTAssertEqual(mike.anchor, 0.35, "宣言した anchor が優先される")
+        XCTAssertEqual(mike.colorIndex, 0)
+        let kuro = result.set.speakerStyles.style(for: Speaker("kuro"))
+        XCTAssertEqual(kuro.displayName, "クロ")
+        XCTAssertEqual(kuro.anchor, 0.75, "anchor 省略時は 2 人用の既定（右 3/4）")
+        XCTAssertEqual(kuro.colorIndex, 1)
+    }
+
+    func testTwoSpeakersWithoutDeclarationKeepLeftAndRight() throws {
+        let result = try load("""
+        {
+          "dialogues": [
+            {"id": "a", "category": "pair", "lines": [
+              {"speaker": "saku", "text": "ひいらぎ"},
+              {"speaker": "shiori", "text": "はい"}
+            ]}
+          ]
+        }
+        """)
+        XCTAssertEqual(result.set.speakerStyles.style(for: .saku).anchor, 0.25)
+        XCTAssertEqual(result.set.speakerStyles.style(for: .shiori).anchor, 0.75)
+        // 同梱してきた id は宣言が無くても日本語名を既定にする（互換）
+        XCTAssertEqual(result.set.speakerStyles.style(for: .saku).displayName, "朔")
+        XCTAssertEqual(result.set.speakerStyles.style(for: .shiori).displayName, "栞")
+    }
+
+    func testThreeSpeakersAreSpreadEvenly() throws {
+        let result = try load("""
+        {
+          "speakers": [{"id": "a"}, {"id": "b"}, {"id": "c"}],
+          "dialogues": [
+            {"id": "x", "category": "pair", "lines": [
+              {"speaker": "a", "text": "1"}, {"speaker": "b", "text": "2"}, {"speaker": "c", "text": "3"}
+            ]}
+          ]
+        }
+        """)
+        XCTAssertEqual(result.set.speakerStyles.style(for: Speaker("a")).anchor, 0.25)
+        XCTAssertEqual(result.set.speakerStyles.style(for: Speaker("b")).anchor, 0.5)
+        XCTAssertEqual(result.set.speakerStyles.style(for: Speaker("c")).anchor, 0.75)
+    }
+
+    func testBrokenSpeakerDeclarationIsSkipped() throws {
+        let result = try load("""
+        {
+          "speakers": [{"displayName": "id なし"}, {"id": "mike"}, {"id": "mike"}],
+          "dialogues": [
+            {"id": "a", "category": "ambient", "lines": [{"speaker": "mike", "text": "にゃあ"}]}
+          ]
+        }
+        """)
+        XCTAssertEqual(result.issues, [.invalidSpeakerDeclaration(index: 0),
+                                       .invalidSpeakerDeclaration(index: 2)])
+        XCTAssertEqual(result.set.declaredSpeakers.map(\.id), ["mike"])
+        XCTAssertEqual(result.set.conversations.map(\.id), ["a"])
     }
 
     func testEmptyLinesAndUnknownCategoryAndDuplicateID() throws {

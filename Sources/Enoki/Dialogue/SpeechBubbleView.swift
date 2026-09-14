@@ -24,12 +24,16 @@ final class SpeechBubbleView: NSView {
     private static let borderColor = NSColor(calibratedWhite: 0.40, alpha: 0.30)
     private static let bodyColor = NSColor(calibratedWhite: 0.12, alpha: 1.0)
 
-    /// 発言者名の色（控えめ）
-    private static func nameColor(for speaker: Speaker) -> NSColor {
-        switch speaker {
-        case .saku:   return NSColor(calibratedRed: 0.20, green: 0.26, blue: 0.46, alpha: 1.0)  // 落ち着いた紺
-        case .shiori: return NSColor(calibratedRed: 0.54, green: 0.26, blue: 0.20, alpha: 1.0)  // 落ち着いた赤茶
-        }
+    /// 発言者名の色（控えめ）。話者の登場順（`SpeakerStyle.colorIndex`）で選ぶ。
+    private static let namePalette: [NSColor] = [
+        NSColor(calibratedRed: 0.20, green: 0.26, blue: 0.46, alpha: 1.0),  // 落ち着いた紺
+        NSColor(calibratedRed: 0.54, green: 0.26, blue: 0.20, alpha: 1.0),  // 落ち着いた赤茶
+        NSColor(calibratedRed: 0.20, green: 0.40, blue: 0.28, alpha: 1.0),  // 落ち着いた緑
+        NSColor(calibratedRed: 0.38, green: 0.28, blue: 0.48, alpha: 1.0),  // 落ち着いた紫
+    ]
+
+    private static func nameColor(for style: SpeakerStyle) -> NSColor {
+        namePalette[max(0, style.colorIndex) % namePalette.count]
     }
 
     // MARK: - 状態
@@ -89,9 +93,9 @@ final class SpeechBubbleView: NSView {
 
     /// 表示内容を入れ、必要なウィンドウサイズ（しっぽ込み）を返す
     @discardableResult
-    func configure(line: DialogueLine) -> NSSize {
-        nameLabel.stringValue = line.speaker.displayName
-        nameLabel.textColor = Self.nameColor(for: line.speaker)
+    func configure(line: DialogueLine, style: SpeakerStyle) -> NSSize {
+        nameLabel.stringValue = style.displayName
+        nameLabel.textColor = Self.nameColor(for: style)
         bodyLabel.stringValue = line.text
 
         // 計測は表示に使う NSTextField 自身に任せる（boundingRect だとセルの余白ぶんずれて 1 行足りなくなる）

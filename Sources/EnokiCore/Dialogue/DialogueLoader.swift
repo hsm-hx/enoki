@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 /// 台詞 JSON の読み込みで起きた「その会話だけ捨てた」理由
 public enum DialogueLoadIssue: Error, Equatable, LocalizedError {
@@ -8,6 +9,7 @@ public enum DialogueLoadIssue: Error, Equatable, LocalizedError {
     case duplicateID(String)
     case unknownCategory(id: String, raw: String)
     case unknownSpeaker(id: String, raw: String)
+    case invalidSpeakerDeclaration(index: Int)
     case emptyText(id: String)
     case emptyLines(id: String)
 
@@ -25,6 +27,8 @@ public enum DialogueLoadIssue: Error, Equatable, LocalizedError {
             return "未知のカテゴリです（\(id)): \(raw)"
         case .unknownSpeaker(let id, let raw):
             return "未知の話し手です（\(id)): \(raw)"
+        case .invalidSpeakerDeclaration(let index):
+            return "speakers[\(index)] に id がありません。"
         case .emptyText(let id):
             return "空の台詞があります: \(id)"
         case .emptyLines(let id):
@@ -63,6 +67,22 @@ public enum DialogueLoader {
         var issues: [DialogueLoadIssue] = []
         var seenIDs = Set<String>()
 
+        // speakers: 話者の宣言（省略可）。書いてあれば、台詞の speaker はこの id に限る。
+        var declaredSpeakers: [SpeakerDeclaration] = []
+        var declaredIDs = Set<String>()
+        for (index, element) in (root["speakers"] as? [Any] ?? []).enumerated() {
+            guard let entry = element as? [String: Any],
+                  let id = (entry["id"] as? String)?.trimmed, !id.isEmpty, !declaredIDs.contains(id) else {
+                issues.append(.invalidSpeakerDeclaration(index: index))
+                continue
+            }
+            declaredIDs.insert(id)
+            declaredSpeakers.append(SpeakerDeclaration(
+                id: id,
+                displayName: (entry["displayName"] as? String).flatMap { $0.trimmed.isEmpty ? nil : $0 },
+                anchor: (entry["anchor"] as? NSNumber).map { CGFloat($0.doubleValue) }))
+        }
+
         for (index, element) in rawList.enumerated() {
             guard let entry = element as? [String: Any] else {
                 issues.append(.entryNotAnObject(index: index))
@@ -96,12 +116,16 @@ public enum DialogueLoader {
                     lineFailed = true
                     break
                 }
-                guard let speakerRaw = lineDict["speaker"] as? String,
-                      let speaker = Speaker(rawValue: speakerRaw) else {
-                    issues.append(.unknownSpeaker(id: id, raw: (lineDict["speaker"] as? String) ?? "(なし)"))
+                // speaker は任意の文字列 id。ただし speakers を宣言しているファイルでは、
+                // 打ち間違いで別人が増えないよう宣言済みの id だけを認める。
+                let speakerRaw = (lineDict["speaker"] as? String)?.trimmed ?? ""
+                guard !speakerRaw.isEmpty,
+                      declaredIDs.isEmpty || declaredIDs.contains(speakerRaw) else {
+                    issues.append(.unknownSpeaker(id: id, raw: speakerRaw.isEmpty ? "(なし)" : speakerRaw))
                     lineFailed = true
                     break
                 }
+                let speaker = Speaker(speakerRaw)
                 guard let text = lineDict["text"] as? String, !text.trimmed.isEmpty else {
                     issues.append(.emptyText(id: id))
                     lineFailed = true
@@ -121,7 +145,9 @@ public enum DialogueLoader {
                                               lines: lines, profiles: profiles))
         }
 
-        return DialogueLoadResult(set: DialogueSet(schemaVersion: schemaVersion, conversations: conversations),
+        return DialogueLoadResult(set: DialogueSet(schemaVersion: schemaVersion,
+                                                   conversations: conversations,
+                                                   declaredSpeakers: declaredSpeakers),
                                   issues: issues)
     }
 

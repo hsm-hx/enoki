@@ -1,8 +1,10 @@
 {
   "schema_version": 1,
-  "character_ids": [
-    "saku",
-    "shiori"
+  "speakers": [
+    {
+      "id": "shiori",
+      "displayName": "栞"
+    }
   ],
   "dialogues": [
     {
@@ -11,8 +13,8 @@
       "cooldown": 3600,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "……仕事、戻らなくていいの？"
+          "speaker": "shiori",
+          "text": "そろそろ、続きに戻りましょうか"
         }
       ]
     },
@@ -23,7 +25,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "今は仕事の時間ですね。区切りのよいところまで進めましょう"
+          "text": "区切りのよいところまで進めましょう"
         }
       ]
     },
@@ -33,16 +35,12 @@
       "cooldown": 3600,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "ひいらぎ、制作したくなってる？"
+          "speaker": "shiori",
+          "text": "手が止まっていますね"
         },
         {
           "speaker": "shiori",
-          "text": "さく。今は仕事です"
-        },
-        {
-          "speaker": "saku",
-          "text": "……わかってるよ。ひいらぎも、あとでね"
+          "text": "次の一歩だけ決めれば大丈夫です"
         }
       ]
     },
@@ -53,7 +51,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "現在の作業、続行中ですね。次の一区切りまで集中しましょう"
+          "text": "焦らなくていいですよ。ゆっくり戻りましょう"
         }
       ]
     },
@@ -64,22 +62,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "ひいらぎ、今やることは一つです"
-        },
-        {
-          "speaker": "saku",
-          "text": "うん。次の一個だけやろ"
-        }
-      ]
-    },
-    {
-      "id": "work_006",
-      "category": "work",
-      "cooldown": 5400,
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "焦らなくていいよ。ちゃんと仕事の続きに戻ればいいからね"
+          "text": "今やることは、ひとつだけで足ります"
         }
       ]
     },
@@ -89,8 +72,8 @@
       "cooldown": 7200,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "水、飲んだ？"
+          "speaker": "shiori",
+          "text": "お水、飲みましたか"
         }
       ]
     },
@@ -101,7 +84,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "水分摂取も必要です。少し飲んでください"
+          "text": "喉が渇く前に、一口どうぞ"
         }
       ]
     },
@@ -112,11 +95,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "そろそろ水分を取っておきましょう"
-        },
-        {
-          "speaker": "saku",
-          "text": "一口でいいよ。飲んでおいで"
+          "text": "カップが空になっていませんか"
         }
       ]
     },
@@ -126,8 +105,8 @@
       "cooldown": 9000,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "ひいらぎ、飲み物まだ近くにある？"
+          "speaker": "shiori",
+          "text": "水分補給も仕事のうちです"
         }
       ]
     },
@@ -137,101 +116,63 @@
       "cooldown": 9000,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "栞、ひいらぎずっと画面見てる"
-        },
-        {
           "speaker": "shiori",
-          "text": "はい。まず水分を取ってもらいましょう"
-        }
-      ]
-    },
-    {
-      "id": "water_006",
-      "category": "water",
-      "cooldown": 9000,
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "集中していると忘れやすいですね。飲み物を一度確認してください"
+          "text": "飲みものを、手の届くところに置いておきましょう"
         }
       ]
     },
     {
       "id": "break_001",
       "category": "break",
-      "cooldown": 3600,
+      "cooldown": 5400,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "ちょっと目、休めよっか"
+          "speaker": "shiori",
+          "text": "少し休みましょう。画面から目を離して"
         }
       ]
     },
     {
       "id": "break_002",
       "category": "break",
-      "cooldown": 4200,
+      "cooldown": 5400,
       "lines": [
         {
           "speaker": "shiori",
-          "text": "長時間の作業になっています。一度、視線を遠くへ向けてください"
+          "text": "肩、こわばっていませんか"
         }
       ]
     },
     {
       "id": "break_003",
       "category": "break",
-      "cooldown": 4200,
+      "cooldown": 5400,
       "lines": [
         {
           "speaker": "shiori",
-          "text": "数分だけ休憩を挟みましょう"
-        },
-        {
-          "speaker": "saku",
-          "text": "僕らも待ってるから、少し休んでおいで"
+          "text": "立ち上がって、伸びをしてみてください"
         }
       ]
     },
     {
       "id": "break_004",
       "category": "break",
-      "cooldown": 5400,
+      "cooldown": 7200,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "肩、力入ってない？　ちょっとだけ抜こ"
+          "speaker": "shiori",
+          "text": "5 分だけ、何もしない時間を取りましょう"
         }
       ]
     },
     {
       "id": "break_005",
       "category": "break",
-      "cooldown": 5400,
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "栞、休憩って言って"
-        },
-        {
-          "speaker": "shiori",
-          "text": "さくが言えばいいでしょう"
-        },
-        {
-          "speaker": "saku",
-          "text": "……ひいらぎ、休憩"
-        }
-      ]
-    },
-    {
-      "id": "break_006",
-      "category": "break",
-      "cooldown": 5400,
+      "cooldown": 7200,
       "lines": [
         {
           "speaker": "shiori",
-          "text": "休むのも作業の一部です。少しだけ席を離れて構いません"
+          "text": "休むのも、続けるためです"
         }
       ]
     },
@@ -241,8 +182,8 @@
       "cooldown": 10800,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "昼ごはん、食べよっか"
+          "speaker": "shiori",
+          "text": "お昼の時間ですね。何か食べましょう"
         }
       ]
     },
@@ -253,7 +194,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "昼食の時間です。区切りのよいところで食べましょう"
+          "text": "そろそろ、お腹がすくころです"
         }
       ]
     },
@@ -263,12 +204,8 @@
       "cooldown": 10800,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "お腹すいてない？"
-        },
-        {
           "speaker": "shiori",
-          "text": "気づいていなくても、時間は来ています。食事にしましょう"
+          "text": "お昼がまだなら、先に済ませてしまいましょう"
         }
       ]
     },
@@ -278,8 +215,8 @@
       "cooldown": 10800,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "仕事の続きは、ごはん食べてからでもできるからね"
+          "speaker": "shiori",
+          "text": "食べてからのほうが、きっとはかどります"
         }
       ]
     },
@@ -290,22 +227,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "ひいらぎ、昼食は済みましたか"
-        },
-        {
-          "speaker": "saku",
-          "text": "まだなら、今のうちに食べよ"
-        }
-      ]
-    },
-    {
-      "id": "lunch_006",
-      "category": "lunch",
-      "cooldown": 10800,
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "午後の作業のためにも、先に食事を入れておきましょう"
+          "text": "今日のお昼は、もう決めましたか"
         }
       ]
     },
@@ -315,8 +237,8 @@
       "cooldown": 5400,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "うん。ちゃんと進んでるよ"
+          "speaker": "shiori",
+          "text": "ここまで、よく進みましたね"
         }
       ]
     },
@@ -327,33 +249,33 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "ここまでの作業は継続できています"
+          "text": "見ていますよ。大丈夫です"
         }
       ]
     },
     {
       "id": "encouragement_003",
       "category": "encouragement",
-      "cooldown": 5400,
+      "cooldown": 7200,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "ひいらぎ、今のところまでで大丈夫"
+          "speaker": "shiori",
+          "text": "うまくいかない日もあります"
         },
         {
           "speaker": "shiori",
-          "text": "はい。次も一つずつ進めれば十分です"
+          "text": "それでも、座っているだけで十分です"
         }
       ]
     },
     {
       "id": "encouragement_004",
       "category": "encouragement",
-      "cooldown": 7200,
+      "cooldown": 5400,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "だから形になってるんでしょ"
+          "speaker": "shiori",
+          "text": "あと少しだけ、一緒に頑張りましょう"
         }
       ]
     },
@@ -364,26 +286,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "進捗を記録しています。今日も前へ進んでいますね"
-        }
-      ]
-    },
-    {
-      "id": "encouragement_006",
-      "category": "encouragement",
-      "cooldown": 7200,
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "さく、ひいらぎの作業を邪魔しないでください"
-        },
-        {
-          "speaker": "saku",
-          "text": "見てただけだよ"
-        },
-        {
-          "speaker": "shiori",
-          "text": "では、静かに見守りましょう"
+          "text": "疲れているのに、よく続けていますね"
         }
       ]
     },
@@ -393,16 +296,8 @@
       "cooldown": 5400,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "栞、ひいらぎ集中してるね"
-        },
-        {
           "speaker": "shiori",
-          "text": "はい。今は声をかけないほうがよさそうです"
-        },
-        {
-          "speaker": "saku",
-          "text": "じゃあ、静かに見てよ"
+          "text": "……今日は、静かですね"
         }
       ]
     },
@@ -412,16 +307,8 @@
       "cooldown": 5400,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "栞、眠くない？"
-        },
-        {
           "speaker": "shiori",
-          "text": "さくのほうが先ほどから瞬きが多いですよ"
-        },
-        {
-          "speaker": "saku",
-          "text": "……見てたの"
+          "text": "窓の外が、少し明るくなってきました"
         }
       ]
     },
@@ -432,15 +319,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "さく、少し位置を詰めてください"
-        },
-        {
-          "speaker": "saku",
-          "text": "狭い？"
-        },
-        {
-          "speaker": "shiori",
-          "text": "ひいらぎの画面を隠しています"
+          "text": "ページをめくる音だけがしています"
         }
       ]
     },
@@ -450,16 +329,8 @@
       "cooldown": 7200,
       "lines": [
         {
-          "speaker": "saku",
-          "text": "今日、外明るいかな"
-        },
-        {
           "speaker": "shiori",
-          "text": "ひいらぎがカーテンを開けたら分かります"
-        },
-        {
-          "speaker": "saku",
-          "text": "レースカーテンの光、好きなんだよね"
+          "text": "ここにいますから、気にせずどうぞ"
         }
       ]
     },
@@ -470,944 +341,7 @@
       "lines": [
         {
           "speaker": "shiori",
-          "text": "さく。何を見ているんですか"
-        },
-        {
-          "speaker": "saku",
-          "text": "ひいらぎのカーソル"
-        },
-        {
-          "speaker": "shiori",
-          "text": "それは面白いですか"
-        },
-        {
-          "speaker": "saku",
-          "text": "ちょっと"
-        }
-      ]
-    },
-    {
-      "id": "ambient_006",
-      "category": "ambient",
-      "cooldown": 7200,
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "栞、今日の記録は？"
-        },
-        {
-          "speaker": "shiori",
-          "text": "まだ途中です。ひいらぎの仕事も終わっていませんから"
-        },
-        {
-          "speaker": "saku",
-          "text": "じゃあ、まだ一緒にいよ"
-        }
-      ]
-    },
-    {
-      "id": "pair_001",
-      "category": "pair",
-      "cooldown": 5400,
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "ひいらぎ、ちゃんと仕事してる？"
-        },
-        {
-          "speaker": "shiori",
-          "text": "さく。監視しているような言い方はやめてください"
-        },
-        {
-          "speaker": "saku",
-          "text": "……じゃあ、仕事の時間だよ"
-        }
-      ]
-    },
-    {
-      "id": "pair_002",
-      "category": "pair",
-      "cooldown": 5400,
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "さく、ひいらぎに何か言うことはありますか"
-        },
-        {
-          "speaker": "saku",
-          "text": "んー……無理しすぎないでね"
-        },
-        {
-          "speaker": "shiori",
-          "text": "それで十分です"
-        }
-      ]
-    },
-    {
-      "id": "pair_003",
-      "category": "pair",
-      "cooldown": 7200,
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "栞、今日もう結構経ったね"
-        },
-        {
-          "speaker": "shiori",
-          "text": "はい。ひいらぎも、一度休憩したほうがよさそうです"
-        },
-        {
-          "speaker": "saku",
-          "text": "ひいらぎ、ちょっと休も"
-        }
-      ]
-    },
-    {
-      "id": "pair_004",
-      "category": "pair",
-      "cooldown": 7200,
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "進捗を記録しています"
-        },
-        {
-          "speaker": "saku",
-          "text": "栞、それ言いたいだけじゃない？"
-        },
-        {
-          "speaker": "shiori",
-          "text": "否定はしません"
-        }
-      ]
-    },
-    {
-      "id": "pair_005",
-      "category": "pair",
-      "cooldown": 7200,
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "ひいらぎ、あとで制作する？"
-        },
-        {
-          "speaker": "shiori",
-          "text": "仕事が終わってからです"
-        },
-        {
-          "speaker": "saku",
-          "text": "うん。じゃあ、あとで続きを見よ"
-        }
-      ]
-    },
-    {
-      "id": "pair_006",
-      "category": "pair",
-      "cooldown": 7200,
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "ひいらぎ、少し疲れてきましたか"
-        },
-        {
-          "speaker": "saku",
-          "text": "顔見えないけどね"
-        },
-        {
-          "speaker": "shiori",
-          "text": "ですから、時間で判断しています"
-        },
-        {
-          "speaker": "saku",
-          "text": "……そっか"
-        }
-      ]
-    },
-    {
-      "id": "casual_001",
-      "category": "pair",
-      "cooldown": 3600,
-      "profiles": [
-        "casual"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "……おつかれ。少し楽にしよ"
-        },
-        {
-          "speaker": "shiori",
-          "text": "はい。今日の仕事はここまでですね"
-        },
-        {
-          "speaker": "saku",
-          "text": "じゃあ、続きを作ろっか"
-        }
-      ]
-    },
-    {
-      "id": "casual_002",
-      "category": "ambient",
-      "cooldown": 3600,
-      "profiles": [
-        "casual"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "……肩の力、抜けてきたね"
-        }
-      ]
-    },
-    {
-      "id": "casual_003",
-      "category": "ambient",
-      "cooldown": 3600,
-      "profiles": [
-        "casual"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "わたしのメモも、ここでいったん閉じますね"
-        }
-      ]
-    },
-    {
-      "id": "casual_004",
-      "category": "pair",
-      "cooldown": 3600,
-      "profiles": [
-        "casual"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "さく、今日はよく手が動いていましたね"
-        },
-        {
-          "speaker": "saku",
-          "text": "ひいらぎのおかげだよ。……少しだけね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_001",
-      "category": "renofa",
-      "cooldown": 3600,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "今日はレノファの日なんだね"
-        },
-        {
-          "speaker": "shiori",
-          "text": "はい。試合の時間は確認しましたか"
-        },
-        {
-          "speaker": "saku",
-          "text": "ちょっとそわそわするね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_002",
-      "category": "renofa",
-      "cooldown": 3600,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "レノファの日は、ひいらぎの手が早いです。記録しておきますね"
-        },
-        {
-          "speaker": "saku",
-          "text": "……ばれてるね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_003",
-      "category": "renofa",
-      "cooldown": 3600,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "きょうだけは、この色でいさせて"
-        },
-        {
-          "speaker": "shiori",
-          "text": "はい。よく似合っています"
-        }
-      ]
-    },
-    {
-      "id": "renofa_004",
-      "category": "renofa",
-      "cooldown": 3600,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "ひいらぎ、声はほどほどに。のどを痛めます"
-        },
-        {
-          "speaker": "saku",
-          "text": "僕は隣で静かに見てるよ"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_001",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "今日、レノファあるんだ。ひいらぎ、見る？"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_002",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "今日は試合の日だね。まだ時間あるけど、ちょっと楽しみ"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_003",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "タオル、出しておいた。まだ使わないけど"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_004",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "試合がある日って、朝から少しだけ特別な感じするね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_005",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "始まるまでは、いつも通り過ごそうか"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_006",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "今日はレノファの試合がありますね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_007",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "まだ試合までは時間があります。のんびり待ちましょう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_008",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "さく、朝からタオルを出していましたよ"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_009",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "試合の日なので、今日は少しだけ特別な格好です"
-        }
-      ]
-    },
-    {
-      "id": "renofa_md_010",
-      "category": "renofa",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "ひいらぎが見るなら、わたしたちも一緒に応援します"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_001",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "そろそろだね。なんか落ち着かなくなってきた"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_002",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "ひいらぎ、もう見る準備した？"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_003",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "今日は勝ちたいね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_004",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "タオル、持ってきた。準備できてるよ"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_005",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "あとちょっとか。始まる前って長く感じるな"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_006",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "栞もさっきから、ちょっとそわそわしてる"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_007",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "そろそろ試合の時間が近づいてきましたね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_008",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "飲み物などは用意しましたか。始まる前に準備しておきましょう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_009",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "試合前は、どうしても少し落ち着かなくなりますね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_010",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "さくはもう完全に応援する準備ができているみたいです"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_011",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "今日はどんな試合になりますかね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_pre_012",
-      "category": "renofa_pre_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "ひいらぎ、一緒に見ましょう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_001",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "始まってるね。応援しよう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_002",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "いける、いける"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_003",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "まだあるよ"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_004",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "なんか僕まで緊張してきた"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_005",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "ひいらぎ、ちゃんと見てる？"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_006",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "最後まで応援しよう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_007",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "試合中ですね。わたしも少し落ち着きません"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_008",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "さく、さっきから画面の前をうろうろしています"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_009",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "まだ試合は続いています。応援しましょう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_010",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "こういう時間は、いつもより時計を見る回数が増えますね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_011",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "わたしもフラッグを持ってきました"
-        }
-      ]
-    },
-    {
-      "id": "renofa_in_012",
-      "category": "renofa_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "ひいらぎと一緒に見ていると、わたしたちも試合の日を過ごしている感じがします"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_001",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "終わったー。ひいらぎ、どうだった？"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_002",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "試合の日って、終わると急に静かになるね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_003",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "タオル、そろそろ片付けるか……"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_004",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "今日はここまでだね。おつかれさま"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_005",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "ひいらぎが楽しかったなら、僕も嬉しい"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_006",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "saku",
-          "text": "また次の試合も、一緒に見よう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_007",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "試合、終わりましたね"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_008",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "お疲れさまでした。ひいらぎはどうでしたか"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_009",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "今日はここまでですね。少し休みましょう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_010",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "試合が終わると、部屋まで少し静かになったように感じます"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_011",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "応援用のものは片付けておきます。また次の試合で使いましょう"
-        }
-      ]
-    },
-    {
-      "id": "renofa_post_012",
-      "category": "renofa_post_match",
-      "cooldown": 10800,
-      "profiles": [
-        "renofa"
-      ],
-      "lines": [
-        {
-          "speaker": "shiori",
-          "text": "今日も一緒に試合の日を過ごせましたね"
+          "text": "いい時間ですね"
         }
       ]
     }

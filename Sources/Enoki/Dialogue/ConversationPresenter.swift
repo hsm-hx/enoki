@@ -30,6 +30,9 @@ final class ConversationPresenter {
         range.lowerBound >= range.upperBound ? range.lowerBound : TimeInterval.random(in: range)
     }
 
+    /// 話者 id → 吹き出しの見せ方（台詞ファイルを読むたびに入れ替える）
+    var speakerStyles: SpeakerStyleTable = .empty
+
     private let bubble = SpeechBubbleWindow()
     private var task: Task<Void, Never>?
     /// 再生ごとに増やす世代番号（古い再生の後始末が新しい再生を壊さないように）
@@ -51,7 +54,7 @@ final class ConversationPresenter {
             for (index, line) in conversation.lines.enumerated() {
                 if Task.isCancelled { cancelled = true; break }
                 self.delegate?.presenter(self, willShow: line)
-                self.bubble.show(line: line, over: parent)
+                self.bubble.show(line: line, style: self.speakerStyles.style(for: line.speaker), over: parent)
 
                 if await Self.sleep(Self.displayDuration(for: line.text)) == false {
                     cancelled = true

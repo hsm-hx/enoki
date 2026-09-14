@@ -125,7 +125,9 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
                     provider = LocalDialogueProvider(dialogueSet: result.set)
                 }
                 dialogueSourceURL = url
-                Self.logger.info("台詞を読み込みました: \(url.path, privacy: .public) \(result.set.conversations.count)件")
+                // 吹き出しの表示名・立ち位置は台詞ファイル側（speakers / 登場人数）で決まる
+                presenter.speakerStyles = result.set.speakerStyles
+                Self.logger.info("台詞を読み込みました: \(url.path, privacy: .public) \(result.set.conversations.count)件 話者: \(result.set.speakerStyles.order.joined(separator: ", "), privacy: .public)\(result.set.isSolo ? "（1人用）" : "", privacy: .public)")
                 return
             } catch {
                 Self.logger.error("台詞を読み込めません \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
@@ -134,6 +136,7 @@ final class ConversationCoordinator: ConversationPresenterDelegate {
 
         provider = nil
         dialogueSourceURL = nil
+        presenter.speakerStyles = .empty
         Self.logger.error("台詞ファイルが見つからないため、会話機能を無効にします")
     }
 

@@ -47,8 +47,8 @@ final class SpeechBubbleWindow: NSPanel {
     // MARK: - 表示
 
     /// 1 発言を表示する（フェードイン）
-    func show(line: DialogueLine, over parent: NSWindow) {
-        let size = bubbleView.configure(line: line)
+    func show(line: DialogueLine, style: SpeakerStyle, over parent: NSWindow) {
+        let size = bubbleView.configure(line: line, style: style)
         let parentFrame = parent.frame
         let screen = parent.screen ?? NSScreen.main ?? NSScreen.screens.first
         let visible = screen?.visibleFrame ?? parentFrame
@@ -62,8 +62,8 @@ final class SpeechBubbleWindow: NSPanel {
         }
         originY = min(max(originY, visible.minY + Self.screenMargin), max(visible.maxY - size.height - Self.screenMargin, visible.minY))
 
-        // 発言者の立ち位置（朔 = 左 1/4、栞 = 右 3/4）にしっぽを向ける
-        let anchorX = parentFrame.minX + parentFrame.width * line.speaker.horizontalAnchor
+        // 発言者の立ち位置にしっぽを向ける（1 人なら中央、2 人なら左 1/4・右 3/4。§11.2 の `speakers`）
+        let anchorX = parentFrame.minX + parentFrame.width * style.anchor
         var originX = anchorX - size.width / 2
         let minX = visible.minX + Self.screenMargin
         let maxX = max(visible.maxX - size.width - Self.screenMargin, minX)
@@ -78,7 +78,7 @@ final class SpeechBubbleWindow: NSPanel {
         bubbleView.needsDisplay = true
 
         attach(to: parent)
-        Self.logger.info("吹き出し \(line.speaker.rawValue, privacy: .public): frame=\(self.frame.origin.x),\(self.frame.origin.y) \(self.frame.width)x\(self.frame.height) tailX=\(tailX) 下向き=\(tailOnBottom) 文字数=\(line.text.count)")
+        Self.logger.info("吹き出し \(style.id, privacy: .public): frame=\(self.frame.origin.x),\(self.frame.origin.y) \(self.frame.width)x\(self.frame.height) tailX=\(tailX) 下向き=\(tailOnBottom) 文字数=\(line.text.count)")
         NSAnimationContext.runAnimationGroup { context in
             context.duration = Self.fadeInDuration
             animator().alphaValue = 1
