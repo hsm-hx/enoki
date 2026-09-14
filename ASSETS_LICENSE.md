@@ -37,6 +37,7 @@ CC0 でも、MIT License の対象でもありません。
 | `Sources/Enoki/Resources/DefaultSkin/pet.json` | 上記に付随するメタデータ（キャラクター名・説明） |
 | `Sources/Enoki/Resources/AppIcon/icon-1024.png` | アプリアイコン |
 | `Sources/Enoki/Resources/DialogueText/dialogue.json` | 公式デモキャラクターの台詞テキスト |
+| `docs/images/` 以下の画像・動画 | キャラクターが写っているスクリーンショット・録画 |
 
 加えて、**キャラクターデザインそのもの**（容姿・設定・名称「御影朔」「御影栞」）も
 同様に MIT License の対象外です。朔と栞のスプライト素材（`saku_shiori_*`）は、

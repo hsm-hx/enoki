@@ -11,7 +11,16 @@ clone してすぐ動かせます（デモアセットは自由素材ではあ�
 - **アクセシビリティ／画面収録／入力監視の権限を要求しません。** 見ているのは時刻と自分の状態だけです。
 - **自分のキャラクターに差し替えて使えます** → [docs/customization.md](docs/customization.md)
 
-<!-- Screenshot will be added here -->
+<p align="center">
+  <img src="docs/images/enoki-demo.gif"
+       alt="デスクトップに立つキャラクターが吹き出しで話しかけ、そのあと私服に着替えるまでのデモ"
+       width="440">
+</p>
+
+> この録画は**開発者の環境**のものです（2 人組 + 私服プロファイルへの着替え）。
+> **同梱のデモキャラクターは栞ひとり**で、ここに写っているアセットはリポジトリに含まれていません。
+> 台詞とスプライトを差し替えれば、人数や衣装も含めて自分のキャラクターにできます
+> （→ [docs/customization.md](docs/customization.md)）。
 
 ---
 
