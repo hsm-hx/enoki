@@ -1,0 +1,92 @@
+name: Bug report / バグ報告
+description: 動かない・落ちる・表示がおかしい
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。日本語でも英語でも構いません。
+        分かる範囲で埋めてもらえれば大丈夫です（空欄があっても受け付けます）。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 問題の概要
+      description: 何が起きているかを 1〜2 行で
+      placeholder: スキンを切り替えると吹き出しが画面の外に出てしまう
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 順番に書いてください
+      placeholder: |
+        1. `make run` で起動する
+        2. メニューの「見た目 (Appearance)」から Casual を選ぶ
+        3. 「ちょっと話して」を押す
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: "`sw_vers -productVersion` の出力と、Apple Silicon / Intel の別"
+      placeholder: "macOS 14.5 / Apple Silicon"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Enoki のバージョン
+      description: メニューバーの「Enoki について」に出ます。ソースから動かしている場合はコミットハッシュ（`git rev-parse --short HEAD`）でも構いません
+      placeholder: "0.1.0 / 63806e3"
+    validations:
+      required: true
+
+  - type: input
+    id: swift
+    attributes:
+      label: Swift のバージョン（ビルドで問題が起きた場合）
+      description: "`swift --version` の 1 行目"
+      placeholder: "Apple Swift version 6.2.4"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ
+      description: |
+        次のコマンドの出力を貼ってください（個人情報が含まれていないか確認してから貼ってください）。
+        ```
+        log show --style compact --info --last 10m --predicate 'subsystem == "com.enoki.mascot"'
+        ```
+      render: text
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: スクリーンショット / 画面収録
+      description: 見た目の問題なら、画像や短い動画があると分かりやすいです
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: その他
+      description: 自作スプライトを使っている、`dialogue.json` を差し替えている、など補足があれば

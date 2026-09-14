@@ -1,0 +1,41 @@
+name: Feature request / 機能提案
+description: こうなったら嬉しい、という提案
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提案ありがとうございます。**どう実装するか**より **なぜ必要か**が伝わると検討しやすいです。
+
+        なお Enoki は「デスクトップでキャラクターと一緒に暮らす」ための小さなアプリです。
+        ネットワーク通信・追加の権限・外部依存を必要とする提案は、
+        [CONTRIBUTING.md の Scope](https://github.com/hsm-hx/enoki/blob/main/CONTRIBUTING.md#scope) も読んでみてください。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 解決したい問題
+      description: どんなときに困っているか。「〜ができない」「〜が面倒」など
+      placeholder: 台詞を変えるたびにアプリを組み直すのが面倒
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案する機能
+      description: どうなってほしいか
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案
+      description: 今のバージョンで代わりにできていること、検討した他のやり方があれば
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 補足
+      description: 参考になるスクリーンショット、他のアプリの例など

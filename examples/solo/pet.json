@@ -1,0 +1,6 @@
+{
+  "id": "my-character",
+  "displayName": "わたしのキャラクター",
+  "description": "1 人用のサンプル。pet.json と dialogue.json を書き換えて使います。",
+  "spritesheetPath": "spritesheet.png"
+}

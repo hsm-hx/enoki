@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "id": "default",
+      "displayName": "Default",
+      "spriteSet": null,
+      "special": false
+    },
+    {
+      "id": "work",
+      "displayName": "Work",
+      "spriteSet": null,
+      "special": false
+    },
+    {
+      "id": "casual",
+      "displayName": "Casual",
+      "spriteSet": "my_character_casual",
+      "dialogueCategories": ["ambient", "pair", "encouragement"],
+      "disabledDialogueCategories": ["work"],
+      "special": false
+    },
+    {
+      "id": "special_event",
+      "displayName": "Special Event",
+      "spriteSet": "my_character_special",
+      "dialogueCategories": ["ambient", "pair", "encouragement"],
+      "disabledDialogueCategories": ["work"],
+      "special": true
+    }
+  ]
+}

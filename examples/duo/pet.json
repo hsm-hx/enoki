@@ -1,0 +1,6 @@
+{
+  "id": "my-duo",
+  "displayName": "ふたり",
+  "description": "2 人用のサンプル。1 コマに 2 人描いたスプライトと組み合わせて使います。",
+  "spritesheetPath": "spritesheet.png"
+}

@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+
+  "speakers": [
+    { "id": "my-character", "displayName": "わたしのキャラクター" }
+  ],
+
+  "dialogues": [
+    {
+      "id": "sample_ambient_001",
+      "category": "ambient",
+      "cooldown": 5400,
+      "lines": [
+        { "speaker": "my-character", "text": "……いい天気ですね" }
+      ]
+    },
+
+    {
+      "id": "sample_lunch_001",
+      "category": "lunch",
+      "cooldown": 10800,
+      "lines": [
+        { "speaker": "my-character", "text": "お昼の時間ですよ" }
+      ]
+    },
+
+    {
+      "id": "sample_encouragement_001",
+      "category": "encouragement",
+      "cooldown": 5400,
+      "lines": [
+        { "speaker": "my-character", "text": "ここまで、よく進みましたね" },
+        { "speaker": "my-character", "text": "あと少しだけ、一緒に頑張りましょう" }
+      ]
+    },
+
+    {
+      "id": "sample_work_001",
+      "category": "work",
+      "cooldown": 3600,
+      "lines": [
+        { "speaker": "my-character", "text": "そろそろ、続きに戻りましょうか" }
+      ]
+    },
+
+    {
+      "id": "sample_casual_001",
+      "category": "ambient",
+      "cooldown": 3600,
+      "profiles": ["casual"],
+      "lines": [
+        { "speaker": "my-character", "text": "今日はゆっくりしましょう" }
+      ]
+    }
+  ]
+}

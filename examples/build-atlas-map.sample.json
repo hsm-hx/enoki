@@ -1,0 +1,9 @@
+{
+  "fallback": "stand",
+  "rows": {
+    "idle": ["stand", "stand", "blink", "stand"],
+    "waving": ["hello_1", "hello_2", "hello_1"],
+    "waiting": ["stand", "stand", "zzz", "zzz"],
+    "running": ["work_1", "work_2"]
+  }
+}

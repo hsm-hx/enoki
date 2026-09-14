@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+
+  "speakers": [
+    { "id": "mike", "displayName": "ミケ", "anchor": 0.25 },
+    { "id": "kuro", "displayName": "クロ", "anchor": 0.75 }
+  ],
+
+  "dialogues": [
+    {
+      "id": "sample_pair_001",
+      "category": "pair",
+      "cooldown": 5400,
+      "lines": [
+        { "speaker": "mike", "text": "ちゃんと休んでる？" },
+        { "speaker": "kuro", "text": "……あとで" },
+        { "speaker": "mike", "text": "いま休もう" }
+      ]
+    },
+
+    {
+      "id": "sample_ambient_001",
+      "category": "ambient",
+      "cooldown": 5400,
+      "lines": [
+        { "speaker": "kuro", "text": "……静かだね" }
+      ]
+    },
+
+    {
+      "id": "sample_break_001",
+      "category": "break",
+      "cooldown": 5400,
+      "lines": [
+        { "speaker": "mike", "text": "少し休憩にしよう" }
+      ]
+    }
+  ]
+}
