@@ -1,6 +1,6 @@
 {
-  "id": "sakushio",
-  "displayName": "朔と栞",
-  "description": "Saku and Shiori side by side: a quiet boy in a dark coat and a bookish girl with her audit tablet, watching over your work together.",
-  "spritesheetPath": "spritesheet.png"
+  "id": "shiori_demo",
+  "displayName": "栞（デモ）",
+  "spritesheetPath": "spritesheet.png",
+  "description": "Demo character bundled with Enoki: Shiori standing alone. Replace this folder with your own pet.json + spritesheet to make Enoki yours (see docs/customization.md)."
 }

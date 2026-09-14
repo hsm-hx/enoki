@@ -11,3 +11,12 @@ build/
 xcuserdata/
 # スプライトセット生成の QA 出力
 Sources/Enoki/Resources/Characters/*/qa/
+# イベント日程は個人データ（リポジトリには入れない。Schedule/README.md 参照）
+Sources/Enoki/Resources/Schedule/*.json
+# 朔と栞のアセットは同梱しない（ローカルに置くぶんはコミットしない）
+Sources/Enoki/Resources/Characters/saku_shiori*/
+# Python
+__pycache__/
+# examples にコピーしたスプライトはコミットしない（画像はリポジトリに 1 つだけ持つ）
+examples/*/spritesheet.png
+examples/*/spritesheet.webp
