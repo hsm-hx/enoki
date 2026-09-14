@@ -1,6 +1,6 @@
-# Enoki v0.1.0 — Release Notes（草案）
+# Enoki v0.1.0 — Release Notes
 
-> このファイルは GitHub Release に貼るための**草案**です。公開前に内容を確認してください。
+> 公開済み: https://github.com/hsm-hx/enoki/releases/tag/v0.1.0
 
 ---
 
